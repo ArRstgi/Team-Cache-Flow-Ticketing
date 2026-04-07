@@ -1,0 +1,26 @@
+name: event-ticketing
+
+services:
+  catalog:
+    build: ./catalog
+    
+  purchase:
+    build: ./purchase
+
+  payment:
+    build: ./payment
+
+  notifications:
+    build: ./notifications
+
+  waitlist:
+    build: ./waitlist
+
+  analytics:
+    build: ./analytics
+
+  frontend:
+    build: ./frontend
+  redis:
+    image: redis:7-alpine
+  
