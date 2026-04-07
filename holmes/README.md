@@ -2,7 +2,7 @@
 
 Holmes is a persistent investigation container that lives on the same Docker network as your system. Use it to inspect, test, and load-test your services without installing anything on your host machine.
 
-Both students and TAs use Holmes. During sprint demos, the TA will open a shell in Holmes and verify your system from there.
+Holmes is included in the starter repository at https://github.com/umass-cs-426/starter-project. Both students and TAs use it. During sprint demos, the TA will open a shell in Holmes and verify your system from there.
 
 ---
 

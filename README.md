@@ -3,7 +3,7 @@
 **Course:** COMPSCI 426  
 **Team:** [Name], [Name], [Name], ...  
 **System:** [e.g. Event Ticketing / Food Delivery / Video Platform / ...]  
-**Repository:** [GitHub URL]
+**Repository:** [GitHub URL — public fork of https://github.com/umass-cs-426/starter-project]
 
 ---
 
