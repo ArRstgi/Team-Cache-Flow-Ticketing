@@ -18,6 +18,12 @@ services:
 
   analytics:
     build: ./analytics
+  
+  refund:
+    build: ./refund
+
+  fraudDetection:
+    build: ./fraudDetection
 
   frontend:
     build: ./frontend
