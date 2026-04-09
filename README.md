@@ -1,9 +1,9 @@
-# [Team Name] — [System Name]
+# [Team Cache Flow Ticketing] — [Event Ticketing]
 
 **Course:** COMPSCI 426  
-**Team:** [Name], [Name], [Name], ...  
-**System:** [e.g. Event Ticketing / Food Delivery / Video Platform / ...]  
-**Repository:** [GitHub URL — public fork of https://github.com/umass-cs-426/starter-project]
+**Team:** Enver Amboy, Hayun Jung, Daniel Brown, Michael Ye, Arush Rastogi, Casey Hammill, Edison Zheng, Mihir Nagarkatti
+**System:** Event Ticketing 
+**Repository:** https://github.com/ArRstgi/Team-Cache-Flow-Ticketing
 
 ---
 
