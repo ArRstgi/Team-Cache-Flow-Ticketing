@@ -86,30 +86,46 @@ services:
   #  networks:
   #    - team-net  
     
-  #purchase:
-  #  build: ./purchase
-  #  networks:
-  #    - team-net  
+  purchase:
+    build: ./purchase
+    networks:
+      - team-net  
 
-  #payment:
-  #  build: ./payment
-  #  networks:
-  #    - team-net  
+  payment:
+    build: ./payment
+    container_name: payment
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - PORT=3000
+    ports:
+      - "3001:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - team-net
 
-  #notifications:
-  #  build: ./notifications
-  #  networks:
-  #    - team-net  
+  notifications:
+    build: ./notifications
+    networks:
+      - team-net  
 
-  #waitlist:
-  #  build: ./waitlist
-  #  networks:
-  #    - team-net  
+  waitlist:
+    build: ./waitlist
+    networks:
+      - team-net  
 
-  #analytics:
-  #  build: ./analytics
-  #  networks:
-  #    - team-net  
+  analytics:
+    build: ./analytics
+    networks:
+      - team-net  
   
   refund:
     build: ./refund
@@ -122,10 +138,10 @@ services:
       SERVICE_NAME: refund
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
-      interval: 10s # how often to run the check
-      timeout: 5s # how long to wait for a response
-      retries: 3 # mark unhealthy after this many consecutive failures
-      start_period: 15s # grace period while the service is starting up
+      interval: 10s 
+      timeout: 5s 
+      retries: 3s 
+      start_period: 15s 
     depends_on:
       refund-db:
         condition: service_healthy
