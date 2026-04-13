@@ -1,0 +1,14 @@
+{
+  "name": "event-catalog-service",
+  "version": "1.0.0",
+  "description": "Event Catalog Service for Team Cache Flow Ticketing",
+  "main": "catalog.js",
+  "scripts": {
+    "start": "node catalog.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.11.5",
+    "redis": "^4.6.13"
+  }
+}
