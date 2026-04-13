@@ -83,50 +83,50 @@ services:
   #
 
 
-  # catalog:
-  #   build: ./catalog
-  #   networks:
-  #     - team-net  
+  catalog:
+    build: ./catalog
+    networks:
+      - team-net  
     
   purchase:
     build: ./purchase
     networks:
       - team-net  
 
-  # payment:
-  #   build: ./payment
-  #   networks:
-  #     - team-net  
+  payment:
+    build: ./payment
+    networks:
+      - team-net  
 
-  # notifications:
-  #   build: ./notifications
-  #   networks:
-  #     - team-net  
+  notifications:
+    build: ./notifications
+    networks:
+      - team-net  
 
-  # waitlist:
-  #   build: ./waitlist
-  #   networks:
-  #     - team-net  
+  waitlist:
+    build: ./waitlist
+    networks:
+      - team-net  
 
-  # analytics:
-  #   build: ./analytics
-  #   networks:
-  #     - team-net  
+  analytics:
+    build: ./analytics
+    networks:
+      - team-net  
   
-  # refund:
-  #   build: ./refund
-  #   networks:
-  #     - team-net  
+  refund:
+    build: ./refund
+    networks:
+      - team-net  
 
-  # fraud-detection:
-  #   build: ./fraudDetection
-  #   networks:
-  #     - team-net  
+  fraud-detection:
+    build: ./fraudDetection
+    networks:
+      - team-net  
 
-  # frontend:
-  #   build: ./frontend
-  #   networks:
-  #     - team-net  
+  frontend:
+    build: ./frontend
+    networks:
+      - team-net  
 
   redis:
     image: redis:7

@@ -18,7 +18,7 @@ const errorRate = new Rate("errors");
 // ── Configuration ─────────────────────────────────────────────────────────────
 // Update this URL to point to your main read endpoint.
 // From inside the holmes container, use the service name (not localhost).
-const TARGET_URL = "http://purchase:3000/";
+const TARGET_URL = "http://purchase:9001/";
 
 export const options = {
   stages: [
