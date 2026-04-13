@@ -87,6 +87,10 @@ services:
   #   build: ./catalog
   #   networks:
   #     - team-net  
+  #catalog:
+  #  build: ./catalog
+  #  networks:
+  #    - team-net  
     
   purchase:
     build: ./purchase
@@ -120,6 +124,31 @@ services:
   #   build: ./notifications
   #   networks:
   #     - team-net  
+  payment:
+    build: ./payment
+    container_name: payment
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - PORT=3000
+    ports:
+      - "3001:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - team-net
+
+  notifications:
+    build: ./notifications
+    networks:
+      - team-net  
 
   # waitlist:
   #   build: ./waitlist
@@ -145,6 +174,37 @@ services:
   #   build: ./frontend
   #   networks:
   #     - team-net  
+  refund:
+    build: ./refund
+    container_name: refund
+    networks:
+      - team-net  
+    environment:
+      DATABASE_URL: postgres://app:secret@refund-db:5432/refunds
+      REDIS_URL: redis://redis:6379
+      SERVICE_NAME: refund
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
+      interval: 10s 
+      timeout: 5s 
+      retries: 3s 
+      start_period: 15s 
+    depends_on:
+      refund-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  #fraud-detection:
+  #  build: ./fraudDetection
+  #  networks:
+  #    - team-net  
+
+  #frontend:
+  #  build: ./frontend
+  #  networks:
+  #    - team-net  
 
   redis:
     image: redis:7
@@ -158,26 +218,27 @@ services:
       timeout: 3s
       retries: 5
 
-  postgres:
+  refund-db:
     image: postgres:16
-    container_name: postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pass
-      POSTGRES_DB: mydb
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
+    container_name: refund-db
     networks:
-      - team-net
+      - team-net  
+    environment:
+      POSTGRES_DB: refunds
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - refund-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d mydb"]
+      test: ['CMD-SHELL', 'pg_isready -U app -d refunds']
       interval: 5s
-      timeout: 3s
+      timeout: 5s
       retries: 5
+      start_period: 10s
+    restart: unless-stopped
 
 # ── Named volumes ──────────────────────────────────────────────────────────────
 # Declare a volume for each database here, e.g.:
 #
 volumes:
-  postgres-data:
+  refund-data:
