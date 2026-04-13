@@ -95,8 +95,24 @@ services:
 
   payment:
     build: ./payment
+    container_name: payment
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - PORT=3000
+    ports:
+      - "3001:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
-      - team-net  
+      - team-net
 
   notifications:
     build: ./notifications
