@@ -79,6 +79,7 @@ services:
   #
   # ── Postgres template ──────────────────────────────────────────────────────
   #
+<<<<<<< Updated upstream
   # postgres:
   #   image: postgres:16
   #   container_name: postgres
@@ -110,6 +111,93 @@ services:
   #     interval: 5s
   #     timeout: 3s
   #     retries: 5
+=======
+
+
+  catalog:
+    build: ./catalog
+    networks:
+      - team-net  
+    
+  purchase:
+    build: ./purchase
+    networks:
+      - team-net  
+
+  payment:
+    build: ./payment
+    networks:
+      - team-net  
+
+  notification:
+    build: ./notifications
+    ports:
+      - "3001:3000"
+    environment:
+      - DATABASE_URL=postgres://...
+      - REDIS_URL=redis://redis:6379
+      - SERVICE_NAME=notification-service
+    networks:
+      - team-net
+    depends_on:
+      - redis
+      - postgres
+      
+  waitlist:
+    build: ./waitlist
+    networks:
+      - team-net  
+
+  analytics:
+    build: ./analytics
+    networks:
+      - team-net  
+  
+  refund:
+    build: ./refund
+    networks:
+      - team-net  
+
+  fraud-detection:
+    build: ./fraudDetection
+    networks:
+      - team-net  
+
+  frontend:
+    build: ./frontend
+    networks:
+      - team-net  
+
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: unless-stopped
+    networks:
+      - team-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: mydb
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - team-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d mydb"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+>>>>>>> Stashed changes
 
 # ── Named volumes ──────────────────────────────────────────────────────────────
 # Declare a volume for each database here, e.g.:
