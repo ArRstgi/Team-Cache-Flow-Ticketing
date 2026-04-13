@@ -3,12 +3,26 @@ name: event-ticketing
 services:
   catalog:
     build: ./catalog
-    
+
   purchase:
     build: ./purchase
 
   payment:
     build: ./payment
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - PORT=3000
+    ports:
+      - "3001:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   notifications:
     build: ./notifications
@@ -18,7 +32,7 @@ services:
 
   analytics:
     build: ./analytics
-  
+
   refund:
     build: ./refund
 
@@ -27,6 +41,12 @@ services:
 
   frontend:
     build: ./frontend
+
   redis:
     image: redis:7-alpine
-  
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
