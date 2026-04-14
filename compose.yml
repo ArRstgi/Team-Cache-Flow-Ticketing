@@ -14,6 +14,8 @@
 #   Check health:              docker compose ps
 # ─────────────────────────────────────────────────────────────────────────────
 
+name: event-ticketing
+
 networks:
   team-net:
     driver: bridge
@@ -79,40 +81,178 @@ services:
   #
   # ── Postgres template ──────────────────────────────────────────────────────
   #
-  # postgres:
-  #   image: postgres:16
-  #   container_name: postgres
-  #   restart: unless-stopped
-  #   environment:
-  #     POSTGRES_USER: user
-  #     POSTGRES_PASSWORD: pass
-  #     POSTGRES_DB: mydb
-  #   volumes:
-  #     - postgres-data:/var/lib/postgresql/data
+
+
+  catalog:
+    build: ./catalog
+    container_name: catalog
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    networks:
+      - team-net
+    environment:
+      - DATABASE_URL=postgres://user:pass@postgres:5432/mydb
+      - REDIS_URL=redis://redis:6379
+      - PORT=3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    
+    
+  purchase:
+    build: ./purchase
+    container_name: purchase
+    restart: unless-stopped
+    ports:
+      - "9001:9001"
+    networks:
+      - team-net  
+    environment:
+      - DATABASE_URL=postgres://app:secret@purchase-db:5432/purchases
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      purchase-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s 
+
+  payment:
+    build: ./payment
+    container_name: payment
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - PORT=3000
+    ports:
+      - "3001:3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - team-net
+
+  # notifications:
+  #   build: ./notifications
   #   networks:
-  #     - team-net
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U user -d mydb"]
-  #     interval: 5s
-  #     timeout: 3s
-  #     retries: 5
-  #
-  # ── Redis template ─────────────────────────────────────────────────────────
-  #
-  # redis:
-  #   image: redis:7
-  #   container_name: redis
-  #   restart: unless-stopped
+  #     - team-net  
+
+  # waitlist:
+  #   build: ./waitlist
   #   networks:
-  #     - team-net
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 5s
-  #     timeout: 3s
-  #     retries: 5
+  #     - team-net  
+
+  # analytics:
+  #   build: ./analytics
+  #   networks:
+  #     - team-net  
+  
+  refund:
+    build: ./refund
+    container_name: refund
+    networks:
+      - team-net  
+    environment:
+      DATABASE_URL: postgres://app:secret@refund-db:5432/refunds
+      REDIS_URL: redis://redis:6379
+      SERVICE_NAME: refund
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
+      interval: 10s 
+      timeout: 5s 
+      retries: 3 
+      start_period: 15s 
+    depends_on:
+      refund-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # fraud-detection:
+  #  build: ./fraudDetection
+  #  networks:
+  #    - team-net  
+
+  # frontend:
+  #  build: ./frontend
+  #  networks:
+  #    - team-net  
+
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: unless-stopped
+    networks:
+      - team-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  refund-db:
+    image: postgres:16
+    container_name: refund-db
+    networks:
+      - team-net  
+    environment:
+      POSTGRES_DB: refunds
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - refund-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d refunds']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+  
+  purchase-db:
+    image: postgres:16
+    container_name: purchase-db
+    networks:
+      - team-net
+    environment:
+      POSTGRES_DB: purchases
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - purchase-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d purchases']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    
 
 # ── Named volumes ──────────────────────────────────────────────────────────────
 # Declare a volume for each database here, e.g.:
 #
-# volumes:
-#   postgres-data:
+volumes:
+  refund-data:
+  purchase-data:
