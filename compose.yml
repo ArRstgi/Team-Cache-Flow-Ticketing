@@ -130,10 +130,19 @@ services:
     networks:
       - team-net
 
-  # notifications:
-  #   build: ./notifications
-  #   networks:
-  #     - team-net  
+  notification:
+    build: ./notifications
+    ports:
+      - "3001:3000"
+    environment:
+      - DATABASE_URL=postgres://...
+      - REDIS_URL=redis://redis:6379
+      - SERVICE_NAME=notification-service
+    networks:
+      - team-net
+    depends_on:
+      - redis
+      - postgres 
 
   # waitlist:
   #   build: ./waitlist
@@ -226,6 +235,24 @@ services:
       retries: 5
       start_period: 10s
     restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      POSTGRES_DB: mydb
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - team-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d mydb"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     
 
 # ── Named volumes ──────────────────────────────────────────────────────────────
@@ -234,3 +261,4 @@ services:
 volumes:
   refund-data:
   purchase-data:
+  postgres-data:
