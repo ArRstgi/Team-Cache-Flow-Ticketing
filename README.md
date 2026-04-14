@@ -1,8 +1,11 @@
-# [Team Cache Flow Ticketing] — [Event Ticketing]
+# Team Cache Flow Ticketing — Event Ticketing
 
-**Course:** COMPSCI 426  
+**Course:** COMPSCI 426
+
 **Team:** Enver Amboy, Hayun Jung, Daniel Brown, Michael Ye, Arush Rastogi, Casey Hammill, Edison Zheng, Mihir Nagarkatti
+
 **System:** Event Ticketing 
+
 **Repository:** https://github.com/ArRstgi/Team-Cache-Flow-Ticketing
 
 ---
