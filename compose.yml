@@ -88,8 +88,26 @@ services:
     
   purchase:
     build: ./purchase
+    container_name: purchase
+    restart: unless-stopped
+    ports:
+      - "9001:9001"
     networks:
       - team-net  
+    environment:
+      - DATABASE_URL=postgres://user:pass@postgres:5432/mydb
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s 
 
   payment:
     build: ./payment
