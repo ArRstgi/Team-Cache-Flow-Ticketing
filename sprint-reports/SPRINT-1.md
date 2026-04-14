@@ -80,4 +80,8 @@ These numbers are your baseline. Sprint 2 caching should improve them measurably
 
 ## Blockers and Lessons Learned
 
-[What slowed you down? What would you do differently? What surprised you?]
+The main blocker this sprint was ramp-up time — this is the first large-scale distributed system most of us have worked on collaboratively, and the first week involved a lot of getting oriented: understanding the architecture, figuring out how to divide ownership across 10 people, and learning each other's workflows. Branches diverged quickly and several PRs hit merge conflicts on `compose.yml` by the end of the sprint as a result.
+
+The k6 script also still references placeholder URLs from the starter template and was never updated with real service endpoints, so we were unable to produce valid baseline results this sprint. This will be the first thing addressed in Sprint 2.
+
+Going forward, we plan to establish a clearer integration workflow — merging into `dev` more frequently rather than letting branches diverge — and designate someone to own `compose.yml` changes to avoid repeated conflicts.
