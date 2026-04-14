@@ -41,6 +41,12 @@ Implement redis cache, and proper communication between services. As well as imp
 
 ---
 
+## Risks
+
+Discrepancies in accessing the Redis queue, using inconsistent data structures in the queue, and other similar issues with coordinating shared resources
+
+---
+
 ## Definition of Done
 
 A TA can trigger an action, watch the queue flow in Docker Compose logs, hit the worker's `/health` to see queue depth and last-job-at, and review k6 results showing the caching improvement.
