@@ -51,14 +51,19 @@ docker compose exec holmes bash
 ### Base URLs (development)
 
 ```
-payment/frontend/catalog    http://localhost:3000
-    refund                  http://localhost:3001
-    purchase                http://localhost:9001
-    holmes                 (no port — access via exec)
+catalog       http://localhost:3001
+payment       http://localhost:3002
+notification  http://localhost:3003
+purchase      http://localhost:9001
+refund        (no host port — internal only)
+holmes        (no port — access via exec)
 ```
 
-> From inside holmes, services are reachable by name:
-> `curl http://your-service:3000/health`
+> From inside holmes, services are reachable by their Docker service name:
+> `curl http://catalog:3000/health`
+> `curl http://payment:3000/health`
+> `curl http://purchase:9001/health`
+> `curl http://refund:3001/health`
 >
 > See [holmes/README.md](holmes/README.md) for a full tool reference.
 
