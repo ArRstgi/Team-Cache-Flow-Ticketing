@@ -101,7 +101,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -119,13 +119,16 @@ services:
     environment:
       - DATABASE_URL=postgres://app:secret@purchase-db:5432/purchases
       - REDIS_URL=redis://redis:6379
+      - PAYMENT_URL=http://payment:3000
     depends_on:
       purchase-db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      payment:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9001/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:9001/health"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -139,7 +142,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - PORT=3000
     ports:
-      - "3001:3000"
+      - "3002:3000"
     depends_on:
       redis:
         condition: service_healthy
@@ -155,7 +158,7 @@ services:
   notification:
     build: ./notifications
     ports:
-      - "3001:3000"
+      - "3003:3000"
     environment:
       - DATABASE_URL=postgres://...
       - REDIS_URL=redis://redis:6379
