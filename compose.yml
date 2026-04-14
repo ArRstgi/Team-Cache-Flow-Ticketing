@@ -95,15 +95,15 @@ services:
     networks:
       - team-net  
     environment:
-      - DATABASE_URL=postgres://user:pass@postgres:5432/mydb
+      - DATABASE_URL=postgres://app:secret@purchase-db:5432/purchases
       - REDIS_URL=redis://redis:6379
     depends_on:
-      postgres:
+      purchase-db:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:9001/health"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -130,20 +130,20 @@ services:
     networks:
       - team-net
 
-  notifications:
-    build: ./notifications
-    networks:
-      - team-net  
+  # notifications:
+  #   build: ./notifications
+  #   networks:
+  #     - team-net  
 
-  waitlist:
-    build: ./waitlist
-    networks:
-      - team-net  
+  # waitlist:
+  #   build: ./waitlist
+  #   networks:
+  #     - team-net  
 
-  analytics:
-    build: ./analytics
-    networks:
-      - team-net  
+  # analytics:
+  #   build: ./analytics
+  #   networks:
+  #     - team-net  
   
   refund:
     build: ./refund
@@ -158,7 +158,7 @@ services:
       test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
       interval: 10s 
       timeout: 5s 
-      retries: 3s 
+      retries: 3 
       start_period: 15s 
     depends_on:
       refund-db:
@@ -167,12 +167,12 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  #fraud-detection:
+  # fraud-detection:
   #  build: ./fraudDetection
   #  networks:
   #    - team-net  
 
-  #frontend:
+  # frontend:
   #  build: ./frontend
   #  networks:
   #    - team-net  
@@ -207,9 +207,30 @@ services:
       retries: 5
       start_period: 10s
     restart: unless-stopped
+  
+  purchase-db:
+    image: postgres:16
+    container_name: purchase-db
+    networks:
+      - team-net
+    environment:
+      POSTGRES_DB: purchases
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - purchase-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d purchases']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    
 
 # ── Named volumes ──────────────────────────────────────────────────────────────
 # Declare a volume for each database here, e.g.:
 #
 volumes:
   refund-data:
+  purchase-data:
