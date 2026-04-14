@@ -81,10 +81,32 @@ services:
   #
   # ── Postgres template ──────────────────────────────────────────────────────
   #
-  #catalog:
-  #  build: ./catalog
-  #  networks:
-  #    - team-net  
+
+
+  catalog:
+    build: ./catalog
+    container_name: catalog
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    networks:
+      - team-net
+    environment:
+      - DATABASE_URL=postgres://user:pass@postgres:5432/mydb
+      - REDIS_URL=redis://redis:6379
+      - PORT=3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    
     
   purchase:
     build: ./purchase
