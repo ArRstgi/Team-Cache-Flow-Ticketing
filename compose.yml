@@ -101,7 +101,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -128,7 +128,7 @@ services:
       payment:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9001/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:9001/health"]
       interval: 10s
       timeout: 5s
       retries: 3
