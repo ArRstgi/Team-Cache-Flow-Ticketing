@@ -1,4 +1,4 @@
-# Sprint 2 Plan — [Team Name]
+# Sprint 2 Plan — Team Cache Flow Ticketing
 
 **Sprint:** 2 — Async Pipelines and Caching  
 **Dates:** 04.14 → 04.21  
