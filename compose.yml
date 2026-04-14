@@ -81,12 +81,10 @@ services:
   #
   # ── Postgres template ──────────────────────────────────────────────────────
   #
-
-
-  # catalog:
-  #   build: ./catalog
-  #   networks:
-  #     - team-net   
+  #catalog:
+  #  build: ./catalog
+  #  networks:
+  #    - team-net  
     
   purchase:
     build: ./purchase
@@ -109,8 +107,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 15s
- 
+      start_period: 15s 
+
   payment:
     build: ./payment
     container_name: payment
@@ -136,7 +134,17 @@ services:
     build: ./notifications
     networks:
       - team-net  
-      
+
+  waitlist:
+    build: ./waitlist
+    networks:
+      - team-net  
+
+  analytics:
+    build: ./analytics
+    networks:
+      - team-net  
+  
   refund:
     build: ./refund
     container_name: refund
@@ -158,6 +166,16 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+
+  #fraud-detection:
+  #  build: ./fraudDetection
+  #  networks:
+  #    - team-net  
+
+  #frontend:
+  #  build: ./frontend
+  #  networks:
+  #    - team-net  
 
   redis:
     image: redis:7
