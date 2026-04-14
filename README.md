@@ -14,7 +14,7 @@
 
 | Team Member | Services / Components Owned                            |
 | ----------- | ------------------------------------------------------ |
-| Mihir Nagarkatti | Compose/Docker Skeleton  |
+| Mihir Nagarkatti | Compose/Docker Skeleton/Sprint Plan  |
 | Edison Zheng     | `refund/`                |
 | Casey Hammill    | `k6/`                    |
 | Arush Rastogi    | `payment/`               |
@@ -22,7 +22,7 @@
 | Michael Ye       | `catalog/`               |
 | Enver Amboy      | `purchase/`              |
 | Hayun Jung       | `notifications/`         |
-| Mahad Mushtaq    | Sprint Plan/Report       |
+| Mahad Mushtaq    | Sprint Report       |
 
 
 > Ownership is verified by `git log --author`. Each person must have meaningful commits in the directories they claim.
