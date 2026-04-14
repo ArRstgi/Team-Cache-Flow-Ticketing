@@ -51,10 +51,10 @@ docker compose exec holmes bash
 ### Base URLs (development)
 
 ```
-[your-service-name]    http://localhost:[port]
-[your-service-name]    http://localhost:[port]
-[worker-name]          http://localhost:[port]   (health endpoint only)
-holmes                 (no port — access via exec)
+payment/frontend/catalog    http://localhost:3000
+    refund                  http://localhost:3001
+    purchase                http://localhost:9001
+    holmes                 (no port — access via exec)
 ```
 
 > From inside holmes, services are reachable by name:
