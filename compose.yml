@@ -83,10 +83,10 @@ services:
   #
 
 
-  catalog:
-    build: ./catalog
-    networks:
-      - team-net   
+  # catalog:
+  #   build: ./catalog
+  #   networks:
+  #     - team-net   
     
   purchase:
     build: ./purchase
