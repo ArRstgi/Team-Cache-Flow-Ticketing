@@ -2,7 +2,7 @@
 
 **Course:** COMPSCI 426
 
-**Team:** Enver Amboy, Hayun Jung, Daniel Brown, Michael Ye, Arush Rastogi, Casey Hammill, Edison Zheng, Mihir Nagarkatti
+**Team:** Enver Amboy, Hayun Jung, Daniel Brown, Michael Ye, Arush Rastogi, Casey Hammill, Edison Zheng, Mihir Nagarkatti, Mahad Mushtaq
 
 **System:** Event Ticketing 
 
@@ -14,9 +14,16 @@
 
 | Team Member | Services / Components Owned                            |
 | ----------- | ------------------------------------------------------ |
-| [Name]      | [e.g. `order-service/`, `order-service/db/schema.sql`] |
-| [Name]      | [e.g. `restaurant-service/`, `redis/menu-cache`]       |
-| [Name]      | [e.g. `dispatch-worker/`, `k6/`]                       |
+| Mihir Nagarkatti | Compose/Docker Skeleton  |
+| Edison Zheng     | `refund/`                |
+| Casey Hammill    | `k6/`                    |
+| Arush Rastogi    | `payment/`               |
+| Daniel Brown     | `frontend/`              |
+| Michael Ye       | `catalog/`               |
+| Enver Amboy      | `purchase/`              |
+| Hayun Jung       | `notifications/`         |
+| Mahad Mushtaq    | Sprint Plan/Report       |
+
 
 > Ownership is verified by `git log --author`. Each person must have meaningful commits in the directories they claim.
 
@@ -59,8 +66,7 @@ holmes                 (no port — access via exec)
 
 ## System Overview
 
-[One paragraph describing what your system does and how the services interact.
-Include which service calls which, what queues exist, and how data flows.]
+N/A
 
 ---
 
@@ -70,6 +76,7 @@ Include which service calls which, what queues exist, and how data flows.]
   Document every endpoint for every service.
   Follow the format described in the project documentation: compact code block notation, then an example curl and an example response. Add a level-2 heading per service, level-3 per endpoint.
 -->
+N/A
 
 ---
 
