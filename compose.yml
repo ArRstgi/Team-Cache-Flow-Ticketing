@@ -201,10 +201,10 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # fraud-detection:
-  #  build: ./fraudDetection
-  #  networks:
-  #    - team-net  
+  fraud-detection:
+   build: ./fraudDetection
+   networks:
+     - team-net  
 
   # frontend:
   #  build: ./frontend
