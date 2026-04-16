@@ -41,7 +41,6 @@ app.get('/health', async (req, res) => {
   let redisStatus = 'unreachable';
   let statusCode = 200;
 
-  // Check Database
   try {
     await pool.query('SELECT 1');
     dbStatus = 'healthy';
@@ -49,7 +48,6 @@ app.get('/health', async (req, res) => {
     statusCode = 503;
   }
 
-  // Check Redis
   try {
     if (redisClient.isReady) {
       await redisClient.ping();
@@ -73,7 +71,17 @@ app.get('/health', async (req, res) => {
 // Core Endpoint: List Events
 app.get('/events', async (req, res) => {
   try {
+    const cachedEvents = await redisClient.get('events:all');
+    if (cachedEvents) {
+      console.log('Cache hit for /events');
+      return res.status(200).json(JSON.parse(cachedEvents));
+    }
+
+    console.log('Cache miss for /events. Querying database...');
     const result = await pool.query('SELECT * FROM events');
+    
+    // Set in Redis (No TTL yet)
+    await redisClient.set('events:all', JSON.stringify(result.rows));
     res.status(200).json(result.rows);
   } catch (error) {
     res.status(500).json({ error: 'Internal Server Error' });
@@ -84,10 +92,23 @@ app.get('/events', async (req, res) => {
 app.get('/events/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const cacheKey = `events:${id}`;
+
+    const cachedEvent = await redisClient.get(cacheKey);
+    if (cachedEvent) {
+      console.log(`Cache hit for /events/${id}`);
+      return res.status(200).json(JSON.parse(cachedEvent));
+    }
+
+    console.log(`Cache miss for /events/${id}. Querying database...`);
     const result = await pool.query('SELECT * FROM events WHERE id = $1', [id]);
+    
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Event not found' });
     }
+
+    // Set in Redis (No TTL yet)
+    await redisClient.set(cacheKey, JSON.stringify(result.rows[0]));
     res.status(200).json(result.rows[0]);
   } catch (error) {
     res.status(500).json({ error: 'Internal Server Error' });
