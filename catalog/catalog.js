@@ -7,7 +7,6 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
-
 app.use(express.json());
 
 // Initialize Database Pool
@@ -81,7 +80,7 @@ app.get('/events', async (req, res) => {
   }
 });
 
-// Core Endpoint: Get Specific Event (Useful for synchronous calls from the Purchase service)
+// Core Endpoint: Get Specific Event
 app.get('/events/:id', async (req, res) => {
   try {
     const { id } = req.params;
