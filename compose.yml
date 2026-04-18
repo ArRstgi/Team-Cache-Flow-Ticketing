@@ -174,14 +174,15 @@ services:
     networks:
       - team-net  
     ports:
-      - "3004:3000"
+      - "3010:3010"
     environment:
       - REDIS_URL=redis://redis:6379
       - WORKER_NAME=waitlist
       - QUEUE_NAME=waitlist_queue
       - DLQ_NAME=waitlist_dlq
+      - PORT=3010
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+      test: ['CMD', 'curl', '-f', 'http://localhost:3010/health']
       interval: 10s 
       timeout: 5s 
       retries: 3 
