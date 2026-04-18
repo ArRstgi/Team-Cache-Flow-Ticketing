@@ -169,10 +169,27 @@ services:
       - redis
       - postgres 
 
-  # waitlist:
-  #   build: ./waitlist
-  #   networks:
-  #     - team-net  
+  waitlist:
+    build: ./waitlist
+    networks:
+      - team-net  
+    ports:
+      - "3004:3000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - WORKER_NAME=waitlist
+      - QUEUE_NAME=waitlist_queue
+      - DLQ_NAME=waitlist_dlq
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+      interval: 10s 
+      timeout: 5s 
+      retries: 3 
+      start_period: 15s
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
   # analytics:
   #   build: ./analytics
