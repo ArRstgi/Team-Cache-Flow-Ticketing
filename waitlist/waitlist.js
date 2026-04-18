@@ -65,7 +65,7 @@ app.get('/health', async (req, res) => {
 
   res.status(healthy ? 200 : 503).json({
     status: healthy ? 'healthy' : 'unhealthy',
-    service: process.env.SERVICE_NAME ?? 'worker',
+    service: process.env.WORKER_NAME ?? 'worker',
     timestamp: new Date().toISOString(),
     uptime_seconds: Math.floor((Date.now() - startTime) / 1000),
     checks,
