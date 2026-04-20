@@ -59,16 +59,28 @@ app.post('refund', async (req, res) => {
   // --- 1. Confirm purchase exists via Purchase Service ---
   let purchase;
   try {
-    const purchaseRes = await fetch(`${PURCHASE_SERVICE_URL}/purchases/${purchaseid}?userid=${userid}`);
+    // const purchaseRes = await fetch(`${PURCHASE_SERVICE_URL}/purchases/${purchaseid}?userid=${userid}`);
 
-    if (purchaseRes.status === 404) {
-      return res.status(404).json({ error: 'Purchase not found' });
-    }
-    if (!purchaseRes.ok) {
-      return res.status(502).json({ error: 'Purchase service error' });
-    }
+    // if (purchaseRes.status === 404) {
+    //   return res.status(404).json({ error: 'Purchase not found' });
+    // }
+    // if (!purchaseRes.ok) {
+    //   return res.status(502).json({ error: 'Purchase service error' });
+    // }
 
-    purchase = await purchaseRes.json();
+    // purchase = await purchaseRes.json();
+    console.log(`
+      This is where the refund service would call the purchase service
+      to confirm the purchase was made in the past. Currently this is not implemented.
+    `)
+    purchase = {
+      purchaseid: "test_purchase_id", 
+      userid: "test_user_id",
+      itemid: "test_item_id",
+      amountPaid: 100,
+      currency: "USD",
+      purchasedAt: Date.now(),
+    }
     // Assumed shape: { purchaseid, userid, itemid, amountPaid, currency, purchasedAt }
   } catch (err) {
     console.error('Failed to reach purchase service:', err);
@@ -92,22 +104,29 @@ app.post('refund', async (req, res) => {
 
   // --- 3. Call Payment Service to execute the refund ---
   try {
-    const paymentRes = await fetch(`${PAYMENT_SERVICE_URL}/refunds`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userid,
-        purchaseid,
-        amount: purchase.amountPaid,
-        currency: purchase.currency,
-      }),
-    });
 
-    if (!paymentRes.ok) {
-      const paymentErr = await paymentRes.json().catch(() => ({}));
-      console.error('Payment service rejected refund:', paymentErr);
-      return res.status(502).json({ error: 'Payment refund failed', details: paymentErr });
-    }
+    // const paymentRes = await fetch(`${PAYMENT_SERVICE_URL}/refunds`, {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({
+    //     userid,
+    //     purchaseid,
+    //     amount: purchase.amountPaid,
+    //     currency: purchase.currency,
+    //   }),
+    // });
+
+    // if (!paymentRes.ok) {
+    //   const paymentErr = await paymentRes.json().catch(() => ({}));
+    //   console.error('Payment service rejected refund:', paymentErr);
+    //   return res.status(502).json({ error: 'Payment refund failed', details: paymentErr });
+    // }
+
+    console.log(`
+      This is where the refund service would call the payments service
+      to actually execute the refund. Currently this is not implemented.
+    `)
+
   } catch (err) {
     console.error('Failed to reach payment service:', err);
     return res.status(503).json({ error: 'Payment service unreachable' });
@@ -119,6 +138,7 @@ app.post('refund', async (req, res) => {
       'INSERT INTO refunds (purchaseid, userid, refunded_at) VALUES ($1, $2, NOW())',
       [purchaseid, userid]
     );
+    console.log(`Wrote to refunds database: ${{purchaseid: purchaseid, userid: userid, refunded_at: Date.now()}}`)
   } catch (err) {
     // Payment went through but we failed to record it - log loudly for manual reconciliation
     console.error('CRITICAL: Refund processed but failed to record in DB:', { userid, purchaseid, err });
