@@ -34,13 +34,17 @@ export const options = {
 };
 
 export default function () {
-  // const res = http.get(TARGET_URL);
+  const res = http.post(TARGET_URL, {
+    user_id: 'test1',
+    seat_number: '5',
+    event_id: '777'
+  });
 
-  // const ok = check(res, {
-  //   "status is 200": (r) => r.status === 200,
-  //   "response time < 500ms": (r) => r.timings.duration < 500,
-  // });
+  const ok = check(res, {
+    "status is 200": (r) => r.status === 200,
+    "response time < 500ms": (r) => r.timings.duration < 500,
+  });
 
-  // errorRate.add(!ok);
-  // sleep(0.5);
+  errorRate.add(!ok);
+  sleep(0.5);
 }
