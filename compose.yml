@@ -213,10 +213,13 @@ services:
     container_name: refund
     networks:
       - team-net  
+    ports:
+      - "3003:3000"
     environment:
       DATABASE_URL: postgres://app:secret@refund-db:5432/refunds
       REDIS_URL: redis://redis:6379
       SERVICE_NAME: refund
+      PORT: 3000
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
       interval: 10s 
@@ -263,6 +266,7 @@ services:
       POSTGRES_PASSWORD: secret
     volumes:
       - refund-data:/var/lib/postgresql/data
+      - ./refund/db:/docker-entrypoint-initdb.d
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U app -d refunds']
       interval: 5s
