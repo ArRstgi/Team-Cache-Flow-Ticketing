@@ -1,4 +1,4 @@
-# Sprint 2 Plan — [Team Name]
+# Sprint 2 Plan — Team Cache Flow Ticketing
 
 **Sprint:** 2 — Async Pipelines and Caching  
 **Dates:** 04.14 → 04.21  
@@ -8,7 +8,7 @@
 
 ## Goal
 
-[What will your team have working by end of sprint? Name the specific cache, queue, and worker you are adding.]
+Implement redis cache, and proper communication between services. As well as implementation of worker and database services.
 
 ---
 
@@ -16,29 +16,34 @@
 
 | Team Member | Files / Directories Owned This Sprint |
 | ----------- | ------------------------------------- |
-| [Name]      | `[path]` |
-| [Name]      | `[path]` |
-| [Name]      | `[path]` |
+| Enver Amboy      | `purchases` |
+| Arush Rastogi    | `payment` |
+| Hayun Jung       | `notifications` |
+| Mihir Nagarkatti | `refund` |
+| Casey Hammill    | `k6`, `fraud-detection`|
+| Michael Ye       | `event-catalog`|
+| Mahad Mushtaq    | `analytics-worker`|
+| Edison Zheng     | `waitlist-worker`|
+| Daniel Brown     | `frontend`|
 
 ---
 
 ## Tasks
 
-### [Name]
+### Add Redis Cache
 
-- [ ] ...
+### Implement Async Pipeline
 
-### [Name]
+### Write Path Idempotency
 
-- [ ] ...
+### Worker Health Endpoint
 
-### [Name]
-
-- [ ] ...
 
 ---
 
 ## Risks
+
+Discrepancies in accessing the Redis queue, using inconsistent data structures in the queue, and other similar issues with coordinating shared resources
 
 ---
 

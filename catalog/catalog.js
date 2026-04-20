@@ -1,0 +1,147 @@
+const express = require('express');
+const { Pool } = require('pg');
+const { createClient } = require('redis');
+const fs = require('fs');
+const path = require('path');
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.use(express.json());
+
+// Initialize Database Pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+// Initialize Redis Client
+const redisClient = createClient({
+  url: process.env.REDIS_URL
+});
+
+redisClient.on('error', (err) => console.log('Redis Client Error', err));
+
+async function initializeDependencies() {
+  await redisClient.connect();
+  
+  // Run schema to initialize DB tables
+  try {
+    const schemaPath = path.join(__dirname, 'db', 'schema.sql');
+    const schema = fs.readFileSync(schemaPath, 'utf8');
+    await pool.query(schema);
+    console.log('Database schema initialized.');
+  } catch (error) {
+    console.error('Failed to initialize schema:', error);
+  }
+}
+
+// GET /health
+app.get('/health', async (req, res) => {
+  let dbStatus = 'unreachable';
+  let redisStatus = 'unreachable';
+  let statusCode = 200;
+
+  try {
+    await pool.query('SELECT 1');
+    dbStatus = 'healthy';
+  } catch (error) {
+    statusCode = 503;
+  }
+
+  try {
+    if (redisClient.isReady) {
+      await redisClient.ping();
+      redisStatus = 'healthy';
+    } else {
+      statusCode = 503;
+    }
+  } catch (error) {
+    statusCode = 503;
+  }
+
+  res.status(statusCode).json({
+    status: statusCode === 200 ? 'healthy' : 'unhealthy',
+    checks: {
+      database: { status: dbStatus },
+      redis: { status: redisStatus }
+    }
+  });
+});
+
+// Core Endpoint: List Events
+app.get('/events', async (req, res) => {
+  try {
+    const cachedEvents = await redisClient.get('events:all');
+    if (cachedEvents) {
+      console.log('Cache hit for /events');
+      return res.status(200).json(JSON.parse(cachedEvents));
+    }
+
+    console.log('Cache miss for /events. Querying database...');
+    const result = await pool.query('SELECT * FROM events');
+    
+    // Set in Redis with 60 second TTL
+    await redisClient.setEx('events:all', 60, JSON.stringify(result.rows));
+    res.status(200).json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Core Endpoint: Get Specific Event
+app.get('/events/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const cacheKey = `events:${id}`;
+
+    const cachedEvent = await redisClient.get(cacheKey);
+    if (cachedEvent) {
+      console.log(`Cache hit for /events/${id}`);
+      return res.status(200).json(JSON.parse(cachedEvent));
+    }
+
+    console.log(`Cache miss for /events/${id}. Querying database...`);
+    const result = await pool.query('SELECT * FROM events WHERE id = $1', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Set in Redis with 60 second TTL
+    await redisClient.setEx(cacheKey, 60, JSON.stringify(result.rows[0]));
+    res.status(200).json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Core Endpoint: Get Seat Map for Specific Event
+app.get('/events/:id/seats', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const cacheKey = `events:${id}:seats`;
+
+    const cachedSeats = await redisClient.get(cacheKey);
+    if (cachedSeats) {
+      console.log(`Cache hit for /events/${id}/seats`);
+      return res.status(200).json(JSON.parse(cachedSeats));
+    }
+
+    console.log(`Cache miss for /events/${id}/seats. Querying database...`);
+    const result = await pool.query('SELECT id, section, row, seat_number FROM seats WHERE event_id = $1', [id]);
+    
+    // Set in Redis with 60 second TTL
+    await redisClient.setEx(cacheKey, 60, JSON.stringify(result.rows));
+    
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error('Error fetching seat map:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+initializeDependencies().then(() => {
+  app.listen(port, () => {
+    console.log(`Event Catalog Service listening on port ${port}`);
+  });
+});

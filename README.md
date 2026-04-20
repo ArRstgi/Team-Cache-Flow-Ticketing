@@ -1,8 +1,11 @@
-# [Team Cache Flow Ticketing] — [Event Ticketing]
+# Team Cache Flow Ticketing — Event Ticketing
 
-**Course:** COMPSCI 426  
-**Team:** Enver Amboy, Hayun Jung, Daniel Brown, Michael Ye, Arush Rastogi, Casey Hammill, Edison Zheng, Mihir Nagarkatti
+**Course:** COMPSCI 426
+
+**Team:** Enver Amboy, Hayun Jung, Daniel Brown, Michael Ye, Arush Rastogi, Casey Hammill, Edison Zheng, Mihir Nagarkatti, Mahad Mushtaq
+
 **System:** Event Ticketing 
+
 **Repository:** https://github.com/ArRstgi/Team-Cache-Flow-Ticketing
 
 ---
@@ -11,9 +14,16 @@
 
 | Team Member | Services / Components Owned                            |
 | ----------- | ------------------------------------------------------ |
-| [Name]      | [e.g. `order-service/`, `order-service/db/schema.sql`] |
-| [Name]      | [e.g. `restaurant-service/`, `redis/menu-cache`]       |
-| [Name]      | [e.g. `dispatch-worker/`, `k6/`]                       |
+| Mihir Nagarkatti | Compose/Docker Skeleton/Sprint Plan  |
+| Edison Zheng     | `refund/`                |
+| Casey Hammill    | `k6/`                    |
+| Arush Rastogi    | `payment/`               |
+| Daniel Brown     | `frontend/`              |
+| Michael Ye       | `catalog/`               |
+| Enver Amboy      | `purchase/`              |
+| Hayun Jung       | `notifications/`         |
+| Mahad Mushtaq    | Sprint Report       |
+
 
 > Ownership is verified by `git log --author`. Each person must have meaningful commits in the directories they claim.
 
@@ -41,14 +51,19 @@ docker compose exec holmes bash
 ### Base URLs (development)
 
 ```
-[your-service-name]    http://localhost:[port]
-[your-service-name]    http://localhost:[port]
-[worker-name]          http://localhost:[port]   (health endpoint only)
-holmes                 (no port — access via exec)
+catalog       http://localhost:3001
+payment       http://localhost:3002
+notification  http://localhost:3003
+purchase      http://localhost:9001
+refund        (no host port — internal only)
+holmes        (no port — access via exec)
 ```
 
-> From inside holmes, services are reachable by name:
-> `curl http://your-service:3000/health`
+> From inside holmes, services are reachable by their Docker service name:
+> `curl http://catalog:3000/health`
+> `curl http://payment:3000/health`
+> `curl http://purchase:9001/health`
+> `curl http://refund:3001/health`
 >
 > See [holmes/README.md](holmes/README.md) for a full tool reference.
 
@@ -56,8 +71,7 @@ holmes                 (no port — access via exec)
 
 ## System Overview
 
-[One paragraph describing what your system does and how the services interact.
-Include which service calls which, what queues exist, and how data flows.]
+N/A
 
 ---
 
@@ -67,6 +81,7 @@ Include which service calls which, what queues exist, and how data flows.]
   Document every endpoint for every service.
   Follow the format described in the project documentation: compact code block notation, then an example curl and an example response. Add a level-2 heading per service, level-3 per endpoint.
 -->
+N/A
 
 ---
 
