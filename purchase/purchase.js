@@ -15,18 +15,6 @@ const redis = createClient({ url: process.env.REDIS_URL });
 await redis.connect();
 
 // Ensure purchases table exists
-// await pool.query(`
-//   CREATE TABLE IF NOT EXISTS purchases (
-//     id SERIAL PRIMARY KEY,
-//     event_id TEXT NOT NULL,
-//     user_id TEXT NOT NULL,
-//     amount NUMERIC NOT NULL,
-//     payment_token TEXT NOT NULL,
-//     transaction_id TEXT,
-//     status TEXT NOT NULL,
-//     created_at TIMESTAMPTZ DEFAULT NOW()
-//   )
-// `);
 await pool.query(`
     CREATE TABLE IF NOT EXISTS purchases (
         user_id TEXT UNIQUE NOT NULL,
@@ -79,47 +67,14 @@ app.get('/health', async (_req, res) => {
     res.status(healthy ? 200 : 503).json(body);
 });
 
-// app.post('/purchase', async (req, res) => {
-//     const { event_id, user_id, amount, payment_token } = req.body ?? {};
-//     if (!event_id || !user_id || !amount || !payment_token) {
-//         return res.status(400).json({ error: 'event_id, user_id, amount, and payment_token are required' });
-//     }
-
-//     // Synchronous call to Payment Service
-//     let paymentResult;
-//     try {
-//         const response = await fetch(`${PAYMENT_URL}/payment`, {
-//             method: 'POST',
-//             headers: { 'Content-Type': 'application/json' },
-//             body: JSON.stringify({ amount, payment_token }),
-//         });
-//         paymentResult = await response.json();
-//     } catch (err) {
-//         return res.status(502).json({ error: 'Payment service unreachable', detail: err.message });
-//     }
-
-//     const status = paymentResult.success ? 'confirmed' : 'failed';
-//     const { rows } = await pool.query(
-//         `INSERT INTO purchases (event_id, user_id, amount, payment_token, transaction_id, status)
-//          VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, status, transaction_id`,
-//         [event_id, user_id, amount, payment_token, paymentResult.transaction_id ?? null, status]
-//     );
-
-//     res.status(paymentResult.success ? 201 : 402).json({
-//         purchase_id: rows[0].id,
-//         status: rows[0].status,
-//         transaction_id: rows[0].transaction_id,
-//     });
-// });
-
 app.post('/purchase', async (req, res) => {
     const payload = req.body ?? {};
-    const user_id = payload.user_id;
-    const seat_number = payload.seat_number;
-    const event_id = payload.event_id;
+    const user_id = String(payload.user_id);
+    const seat_number = String(payload.seat_number);
+    const event_id = String(payload.event_id);
     try {
-        await pool.query(`INSERT INTO purchases VALUES (${user_id}, ${seat_number}, ${event_id});`);
-        let query_results = await pool.query(`SELECT * FROM purchases WHERE user_id = CAST(${user_id} as text);`);
+        await pool.query(`INSERT INTO purchases VALUES ('${user_id}', '${seat_number}', '${event_id}');`);
+        let query_results = await pool.query(`SELECT * FROM purchases WHERE user_id = '${user_id}';`);
         query_results = (query_results.rows)[0];
         res
             .status(201)
@@ -133,7 +88,7 @@ app.post('/purchase', async (req, res) => {
             });
     }
     catch (error) {
-        let query_results = await pool.query(`SELECT * FROM purchases WHERE user_id = CAST(${user_id} as text);`);
+        let query_results = await pool.query(`SELECT * FROM purchases WHERE user_id = '${user_id}';`);
         query_results = (query_results.rows)[0];
         res
             .status(200)
