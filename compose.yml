@@ -38,18 +38,22 @@ services:
   # are accessible without copying them into the container.
   #
   # See holmes/README.md for a full tool reference.
-  holmes:
-    build:
-      context: ./holmes
-      dockerfile: Dockerfile
-    container_name: holmes
-    restart: unless-stopped
-    volumes:
-      - .:/workspace
-    networks:
-      - team-net
-    environment:
-      - TERM=xterm-256color
+
+
+  # holmes:
+  #   build:
+  #     context: ./holmes
+  #     dockerfile: Dockerfile
+  #   container_name: holmes
+  #   restart: unless-stopped
+  #   volumes:
+  #     - .:/workspace
+  #   networks:
+  #     - team-net
+  #   environment:
+  #     - TERM=xterm-256color
+
+
     # Holmes has no ports — access it via: docker compose exec holmes bash
 
   # ── Add your services here ─────────────────────────────────────────────────
@@ -157,22 +161,47 @@ services:
 
   notification:
     build: ./notifications
+    container_name: notification
+    restart: unless-stopped
     ports:
       - "3003:3000"
     environment:
-      - DATABASE_URL=postgres://...
       - REDIS_URL=redis://redis:6379
       - SERVICE_NAME=notification-service
     networks:
       - team-net
     depends_on:
-      - redis
-      - postgres 
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
-  # waitlist:
-  #   build: ./waitlist
-  #   networks:
-  #     - team-net  
+  waitlist:
+    build: ./waitlist
+    networks:
+      - team-net  
+    ports:
+      - "3010:3010"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - WORKER_NAME=waitlist
+      - QUEUE_NAME=waitlist_queue
+      - DLQ_NAME=waitlist_dlq
+      - PORT=3010
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3010/health']
+      interval: 10s 
+      timeout: 5s 
+      retries: 3 
+      start_period: 15s
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
   # analytics:
   #   build: ./analytics
@@ -184,10 +213,13 @@ services:
     container_name: refund
     networks:
       - team-net  
+    ports:
+      - "3003:3000"
     environment:
       DATABASE_URL: postgres://app:secret@refund-db:5432/refunds
       REDIS_URL: redis://redis:6379
       SERVICE_NAME: refund
+      PORT: 3000
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
       interval: 10s 
@@ -234,6 +266,7 @@ services:
       POSTGRES_PASSWORD: secret
     volumes:
       - refund-data:/var/lib/postgresql/data
+      - ./refund/db:/docker-entrypoint-initdb.d
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U app -d refunds']
       interval: 5s
