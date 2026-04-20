@@ -184,6 +184,8 @@ services:
     container_name: refund
     networks:
       - team-net  
+    ports:
+      - "3003:3000"
     environment:
       DATABASE_URL: postgres://app:secret@refund-db:5432/refunds
       REDIS_URL: redis://redis:6379

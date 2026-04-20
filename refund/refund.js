@@ -3,6 +3,7 @@ import pg from 'pg'
 import { createClient } from 'redis'
 
 const app = express();
+app.use(express.json());
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const redis = createClient({ url: process.env.REDIS_URL });
 await redis.connect();
@@ -49,8 +50,9 @@ app.get('/health', async (req, res) => {
   res.status(healthy ? 200 : 503).json(body)
 })
 
-app.post('refund', async (req, res) => {
-  const { userid, purchaseid } = req.body;
+app.post('/refund', async (req, res) => {
+
+  const { userid, purchaseid } = req.body || {};
 
   if (!userid || !purchaseid) {
     return res.status(400).json({ error: 'Missing required fields: userid and purchaseid' });
@@ -95,6 +97,7 @@ app.post('refund', async (req, res) => {
     );
 
     if (existing.rows.length > 0) {
+      console.log("Purchase has already been refunded, can't refund again!");
       return res.status(409).json({ error: 'Purchase has already been refunded' });
     }
   } catch (err) {
