@@ -38,18 +38,22 @@ services:
   # are accessible without copying them into the container.
   #
   # See holmes/README.md for a full tool reference.
-  holmes:
-    build:
-      context: ./holmes
-      dockerfile: Dockerfile
-    container_name: holmes
-    restart: unless-stopped
-    volumes:
-      - .:/workspace
-    networks:
-      - team-net
-    environment:
-      - TERM=xterm-256color
+
+
+  # holmes:
+  #   build:
+  #     context: ./holmes
+  #     dockerfile: Dockerfile
+  #   container_name: holmes
+  #   restart: unless-stopped
+  #   volumes:
+  #     - .:/workspace
+  #   networks:
+  #     - team-net
+  #   environment:
+  #     - TERM=xterm-256color
+
+
     # Holmes has no ports — access it via: docker compose exec holmes bash
 
   # ── Add your services here ─────────────────────────────────────────────────
@@ -157,17 +161,24 @@ services:
 
   notification:
     build: ./notifications
+    container_name: notification
+    restart: unless-stopped
     ports:
       - "3003:3000"
     environment:
-      - DATABASE_URL=postgres://...
       - REDIS_URL=redis://redis:6379
       - SERVICE_NAME=notification-service
     networks:
       - team-net
     depends_on:
-      - redis
-      - postgres 
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   waitlist:
     build: ./waitlist
