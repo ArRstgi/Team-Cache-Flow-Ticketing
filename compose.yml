@@ -188,6 +188,7 @@ services:
       DATABASE_URL: postgres://app:secret@refund-db:5432/refunds
       REDIS_URL: redis://redis:6379
       SERVICE_NAME: refund
+      PORT: 3003
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
       interval: 10s 

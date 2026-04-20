@@ -9,8 +9,9 @@ await redis.connect();
 
 const startTime = Date.now();
 
-const PURCHASE_SERVICE_URL = "TODO";
-const PAYMENT_SERVICE_URL = "TODO";
+const PURCHASE_SERVICE_URL = process.env.PURCHASE_SERVICE_URL;
+const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL;
+const PORT = process.env.PORT || 3003;
 
 app.get('/health', async (req, res) => {
   const checks = {}
@@ -139,7 +140,6 @@ app.post('refund', async (req, res) => {
   return res.status(200).json({ message: 'Refund successful and seat released' });
 })
 
-const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`Refund service is running on port ${PORT}`);
 })
