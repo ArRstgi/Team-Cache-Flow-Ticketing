@@ -80,8 +80,8 @@ app.get('/events', async (req, res) => {
     console.log('Cache miss for /events. Querying database...');
     const result = await pool.query('SELECT * FROM events');
     
-    // Set in Redis (No TTL yet)
-    await redisClient.set('events:all', JSON.stringify(result.rows));
+    // Set in Redis with 60 second TTL
+    await redisClient.setEx('events:all', 60, JSON.stringify(result.rows));
     res.status(200).json(result.rows);
   } catch (error) {
     res.status(500).json({ error: 'Internal Server Error' });
@@ -107,10 +107,35 @@ app.get('/events/:id', async (req, res) => {
       return res.status(404).json({ error: 'Event not found' });
     }
 
-    // Set in Redis (No TTL yet)
-    await redisClient.set(cacheKey, JSON.stringify(result.rows[0]));
+    // Set in Redis with 60 second TTL
+    await redisClient.setEx(cacheKey, 60, JSON.stringify(result.rows[0]));
     res.status(200).json(result.rows[0]);
   } catch (error) {
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Core Endpoint: Get Seat Map for Specific Event
+app.get('/events/:id/seats', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const cacheKey = `events:${id}:seats`;
+
+    const cachedSeats = await redisClient.get(cacheKey);
+    if (cachedSeats) {
+      console.log(`Cache hit for /events/${id}/seats`);
+      return res.status(200).json(JSON.parse(cachedSeats));
+    }
+
+    console.log(`Cache miss for /events/${id}/seats. Querying database...`);
+    const result = await pool.query('SELECT id, section, row, seat_number FROM seats WHERE event_id = $1', [id]);
+    
+    // Set in Redis with 60 second TTL
+    await redisClient.setEx(cacheKey, 60, JSON.stringify(result.rows));
+    
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error('Error fetching seat map:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
