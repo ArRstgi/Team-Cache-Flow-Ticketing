@@ -2,11 +2,21 @@ import express from 'express'
 import { createClient } from 'redis'
 
 const app = express()
+app.use(express.json())
 
 const port = Number(process.env.PORT || '8080')
 
 const redis = createClient({ url: process.env.REDIS_URL })
-await redis.connect()
+await redis.connect();
+
+const subscriber = redis.duplicate();
+await subscriber.connect();
+
+await subscriber.subscribe('seat.released', (data) => {
+  const event = JSON.parse(data);
+  console.log(`Received seat.released event: ${data}`);
+  handleSeatReleased(event);
+});
 
 const startTime = Date.now()
 let lastJobAt = null
