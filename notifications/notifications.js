@@ -21,6 +21,18 @@ app.get('/health', async (_req, res) => {
         checks.redis = { status: 'unhealthy', error: err.message };
         healthy = false;
     }
+    
+    // Check cache (set and get a test key)
+    try {
+        await redis.set('health:cache:test', '1', { EX: 5 });
+        const val = await redis.get('health:cache:test');
+        checks.cache = val === '1'
+            ? { status: 'healthy' }
+            : { status: 'unhealthy', error: 'cache read/write mismatch' };
+    } catch (err) {
+        checks.cache = { status: 'unhealthy', error: err.message };
+        healthy = false;
+    }
 
     const body = {
         status: healthy ? 'healthy' : 'unhealthy',
