@@ -319,7 +319,53 @@ services:
 # ── Named volumes ──────────────────────────────────────────────────────────────
 # Declare a volume for each database here, e.g.:
 #
+
+  analytics:
+    build: ./analytics
+    container_name: analytics
+    restart: unless-stopped
+    ports:
+      - "3005:3005"
+    networks:
+      - team-net
+    environment:
+      - DATABASE_URL=postgres://app:secret@analytics-db:5432/analytics
+      - REDIS_URL=redis://redis:6379
+      - PORT=3005
+      - QUEUE_NAME=analytics:queue
+    depends_on:
+      analytics-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3005/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  analytics-db:
+    image: postgres:16
+    container_name: analytics-db
+    restart: unless-stopped
+    networks:
+      - team-net
+    environment:
+      POSTGRES_DB: analytics
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - analytics-data:/var/lib/postgresql/data
+      - ./analytics/db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d analytics"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 volumes:
   refund-data:
   purchase-data:
   postgres-data:
+  analytics-data:
