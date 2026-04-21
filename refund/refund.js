@@ -52,16 +52,16 @@ app.get('/health', async (req, res) => {
 
 app.post('/refund', async (req, res) => {
 
-  const { userid, purchaseid } = req.body || {};
+  const { user_id, purchase_id } = req.body || {};
 
-  if (!userid || !purchaseid) {
-    return res.status(400).json({ error: 'Missing required fields: userid and purchaseid' });
+  if (!user_id || !purchase_id) {
+    return res.status(400).json({ error: 'Missing required fields: user_id and purchase_id' });
   }
 
   // --- 1. Confirm purchase exists via Purchase Service ---
   let purchase;
   try {
-    // const purchaseRes = await fetch(`${PURCHASE_SERVICE_URL}/purchases/${purchaseid}?userid=${userid}`);
+    // const purchaseRes = await fetch(`${PURCHASE_SERVICE_URL}/purchases/${purchase_id}?user_id=${user_id}`);
 
     // if (purchaseRes.status === 404) {
     //   return res.status(404).json({ error: 'Purchase not found' });
@@ -76,14 +76,15 @@ app.post('/refund', async (req, res) => {
       to confirm the purchase was made in the past. Currently this is not implemented.
     `)
     purchase = {
-      purchaseid: "test_purchase_id", 
-      userid: "test_user_id",
-      itemid: "test_item_id",
+      purchase_id: "test_purchase_id_1", 
+      user_id: "test_user_id_1",
+      event_id: "test_event_id_1",
+      seat_number: 10,
       amountPaid: 100,
       currency: "USD",
       purchasedAt: Date.now(),
     }
-    // Assumed shape: { purchaseid, userid, itemid, amountPaid, currency, purchasedAt }
+    // Assumed shape: { purchase_id, user_id, item_id, amountPaid, currency, purchasedAt }
   } catch (err) {
     console.error('Failed to reach purchase service:', err);
     return res.status(503).json({ error: 'Purchase service unreachable' });
@@ -92,8 +93,8 @@ app.post('/refund', async (req, res) => {
   // --- 2. Check Refund DB to prevent double refunds ---
   try {
     const existing = await pool.query(
-      'SELECT id FROM refunds WHERE purchaseid = $1',
-      [purchaseid]
+      'SELECT id FROM refunds WHERE purchase_id = $1',
+      [purchase_id]
     );
 
     if (existing.rows.length > 0) {
@@ -112,8 +113,8 @@ app.post('/refund', async (req, res) => {
     //   method: 'POST',
     //   headers: { 'Content-Type': 'application/json' },
     //   body: JSON.stringify({
-    //     userid,
-    //     purchaseid,
+    //     user_id,
+    //     purchase_id,
     //     amount: purchase.amountPaid,
     //     currency: purchase.currency,
     //   }),
@@ -138,27 +139,28 @@ app.post('/refund', async (req, res) => {
   // --- 4. Record the refund in our own DB ---
   try {
     await pool.query(
-      'INSERT INTO refunds (purchaseid, userid, refunded_at) VALUES ($1, $2, NOW())',
-      [purchaseid, userid]
+      'INSERT INTO refunds (purchase_id, user_id, refunded_at) VALUES ($1, $2, NOW())',
+      [purchase_id, user_id]
     );
-    console.log(`Wrote to refunds database: ${{purchaseid: purchaseid, userid: userid, refunded_at: Date.now()}}`)
+    console.log(`Wrote to refunds database: ${{ purchase_id, user_id, refunded_at: Date.now()}}`)
   } catch (err) {
     // Payment went through but we failed to record it - log loudly for manual reconciliation
-    console.error('CRITICAL: Refund processed but failed to record in DB:', { userid, purchaseid, err });
+    console.error('CRITICAL: Refund processed but failed to record in DB:', { user_id, purchase_id, err });
     // Still continue — the refund did succeed, so we shouldn't return a failure to the client
   }
 
   // --- 5. Publish "seat released" event via Redis pub/sub ---
   try {
     await redis.publish('seat.released', JSON.stringify({
-      userid,
-      purchaseid,
-      itemid: purchase.itemid,
+      user_id,
+      purchase_id,
+      event_id: purchase.event_id,
+      seat_number: purchase.seat_number,
       releasedAt: new Date().toISOString(),
     }));
   } catch (err) {
     // Non-fatal: log for investigation, but don't fail the response
-    console.error('Failed to publish seat.released event:', { userid, purchaseid, err });
+    console.error('Failed to publish seat.released event:', { user_id, purchase_id, err });
   }
   return res.status(200).json({ message: 'Refund successful and seat released' });
 })
