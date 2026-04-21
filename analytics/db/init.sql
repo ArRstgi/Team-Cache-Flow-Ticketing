@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS ticket_stats (
+  event_id TEXT PRIMARY KEY,
+  tickets_sold INT NOT NULL DEFAULT 0,
+  last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS browse_stats (
+  id SERIAL PRIMARY KEY,
+  event_id TEXT NOT NULL,
+  browsed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

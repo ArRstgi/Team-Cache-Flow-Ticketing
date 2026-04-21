@@ -7,10 +7,38 @@ CREATE TABLE IF NOT EXISTS events (
     available_seats INTEGER NOT NULL
 );
 
-INSERT INTO events (name, venue, date, total_seats, available_seats)
-SELECT 'Taylor Swift Eras Tour', 'Gillette Stadium', '2026-07-15 19:00:00', 65000, 65000
-WHERE NOT EXISTS (SELECT 1 FROM events);
+CREATE TABLE IF NOT EXISTS seats (
+    id SERIAL PRIMARY KEY,
+    event_id INTEGER REFERENCES events(id) ON DELETE CASCADE,
+    section VARCHAR(50) NOT NULL,
+    row VARCHAR(10) NOT NULL,
+    seat_number INTEGER NOT NULL,
+    UNIQUE (event_id, section, row, seat_number)
+);
 
-INSERT INTO events (name, venue, date, total_seats, available_seats)
-SELECT 'Boston Celtics vs. Lakers', 'TD Garden', '2026-11-05 19:30:00', 19580, 19580
-WHERE NOT EXISTS (SELECT 1 FROM events);
+-- Insert Events
+INSERT INTO events (id, name, venue, date, total_seats, available_seats)
+VALUES (1, 'Laufey Tour', 'Madison Square Garden', '2025-05-05 15:55:55', 55000, 55000)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO events (id, name, venue, date, total_seats, available_seats)
+VALUES (2, 'Boston Celtics vs. Thunder', 'TD Garden', '2023-04-15 12:35:00', 50000, 30000)
+ON CONFLICT DO NOTHING;
+
+-- Insert a small mock seat map for Event 1 
+INSERT INTO seats (event_id, section, row, seat_number)
+VALUES 
+    (1, 'VIP', 'A', 1),
+    (1, 'VIP', 'A', 2),
+    (1, 'VIP', 'A', 3),
+    (1, '101', 'G', 15),
+    (1, '101', 'G', 16)
+ON CONFLICT DO NOTHING;
+
+-- Insert a small mock seat map for Event 2 
+INSERT INTO seats (event_id, section, row, seat_number)
+VALUES 
+    (2, 'Courtside', '1', 1),
+    (2, 'Courtside', '1', 2),
+    (2, 'Loge', '12', 5)
+ON CONFLICT DO NOTHING;
