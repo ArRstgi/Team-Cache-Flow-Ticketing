@@ -94,6 +94,323 @@ N/A
 N/A
 ---
 ### [Service Name]
+
+### Event Catalog
+
+
+#### GET /health
+
+```
+GET /health
+
+  Returns the health status of this service and its dependencies.
+
+  Responses:
+    200  Service and all dependencies healthy
+    503  One or more dependencies unreachable
+```
+
+**Example request:**
+
+```bash
+curl http://catalog:3000/health
+```
+
+**Example response (200):**
+
+```json
+{
+  "status": "healthy",
+  "checks": {
+    "database": {
+      "status": "healthy"
+    },
+    "redis": {
+      "status": "healthy"
+    }
+  }
+}
+```
+
+**Example response (503):**
+
+```json
+{
+  "status": "unhealthy",
+  "checks": {
+    "database": {
+      "status": "healthy"
+    },
+    "redis": {
+      "status": "unreachable"
+    }
+  }
+}
+```
+
+---
+
+#### GET /events
+
+```
+GET /events
+
+  Returns a list of all events in the catalog.
+
+  Responses:
+    200  Successful response containing an array of events
+    500  Internal Server Error
+```
+
+**Example request:**
+
+```bash
+curl http://catalog:3000/events
+```
+
+**Example response (200):**
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Laufey Tour",
+    "venue": "Madison Square Garden",
+    "date": "2025-05-05T15:55:55.000Z",
+    "total_seats": 55000,
+    "available_seats": 55000
+  },
+  {
+    "id": 2,
+    "name": "Boston Celtics vs. Thunder",
+    "venue": "TD Garden",
+    "date": "2023-04-15T12:35:00.000Z",
+    "total_seats": 50000,
+    "available_seats": 30000
+  }
+]
+```
+
+**Example response (500):**
+
+```json
+{
+  "error": "Internal Server Error"
+}
+```
+
+---
+
+#### GET /events/:id
+
+```
+GET /events/:id
+
+  Returns details for a specific event by its ID.
+
+  Responses:
+    200  Successful response containing the event details
+    404  Event not found
+    500  Internal Server Error
+```
+
+**Example request:**
+
+```bash
+curl http://catalog:3000/events/1
+```
+
+**Example response (200):**
+
+```json
+{
+  "id": 1,
+  "name": "Laufey Tour",
+  "venue": "Madison Square Garden",
+  "date": "2025-05-05T15:55:55.000Z",
+  "total_seats": 55000,
+  "available_seats": 55000
+}
+```
+
+**Example response (404):**
+
+```json
+{
+  "error": "Event not found"
+}
+```
+
+**Example response (500):**
+
+```json
+{
+  "error": "Internal Server Error"
+}
+```
+
+---
+
+#### GET /events/:id/seats
+
+```
+GET /events/:id/seats
+
+  Returns the seat map for a specific event by its ID.
+
+  Responses:
+    200  Successful response containing an array of seats
+    500  Internal Server Error
+```
+
+**Example request:**
+
+```bash
+curl http://catalog:3000/events/1/seats
+```
+
+**Example response (200):**
+
+```json
+[
+  {
+    "id": 1,
+    "section": "VIP",
+    "row": "A",
+    "seat_number": 1
+  },
+  {
+    "id": 2,
+    "section": "VIP",
+    "row": "A",
+    "seat_number": 2
+  },
+  {
+    "id": 3,
+    "section": "VIP",
+    "row": "A",
+    "seat_number": 3
+  },
+  {
+    "id": 4,
+    "section": "101",
+    "row": "G",
+    "seat_number": 15
+  },
+  {
+    "id": 5,
+    "section": "101",
+    "row": "G",
+    "seat_number": 16
+  }
+]
+```
+
+**Example response (500):**
+
+```json
+{
+  "error": "Internal Server Error"
+}
+```
+
+---
+
+
+### Refund
+
+#### GET /health
+```
+GET /health
+
+  Returns the health status of this service and its dependencies.
+
+  Responses:
+    200  Service and all dependencies healthy
+    503  One or more dependencies unreachable
+```
+
+**Example request:**
+```bash
+curl http://refund:3000/health
+```
+**Example response (200):**
+
+```json
+{
+  "checks" : {
+    "database" : {
+      "latency_ms" : 1,
+      "status" : "healthy"
+    },
+    "redis" : {
+      "latency_ms" : 0,
+      "status" : "healthy"
+    }
+  },
+  "service" : "refund",
+  "status" : "healthy",
+  "timestamp" : "2026-04-21T14:40:45.373Z",
+  "uptime_seconds" : 349
+}
+```
+
+**Example Response (503)**
+```json
+{
+  "checks" : {
+    "database" : {
+      "error" : "getaddrinfo ENOTFOUND refund-db",
+      "status" : "unhealthy"
+    },
+    "redis" : {
+      "latency_ms" : 1,
+      "status" : "healthy"
+    }
+  },
+  "service" : "refund",
+  "status" : "unhealthy",
+  "timestamp" : "2026-04-21T14:44:35.723Z",
+  "uptime_seconds" : 22
+}
+```
+
+#### POST /refund
+
+**Example Request**
+```bash
+curl -X POST http://refund:3000/refund \
+  -H "Content-Type: application/json" \
+  -d '{"purchase_id": "test_key_1", "user_id": "test_user_id_1"}' 
+```
+
+**Example Response (400)** (if the object passed to curl's -d option was missing "purchase_id" or "user_id"):
+```json
+  {"error":"Missing required fields: user_id and purchase_id"}
+```
+**Example Response (409)** (if the "purchase_id" had already been refunded):
+```json
+  {"error":"Purchase has already been refunded"}
+```
+**Example Response (500)** (if the refund database was down):
+```json
+  {"error":"Database error while checking refund status"}
+```
+**Example Response (502)** (if the refund payment itself failed):
+```json
+  {"error":"Payment refund failed", "details": "Payment error"}
+```
+**Example Response (503)** (if the payment service is unreachable):
+```json
+  {"error":"Payment service unreachable"}
+```
+**Example Response (200)** (if the payment service is unreachable):
+```json
+  {"message":"Refund successful and seat released"}
+```
+
+
+
 ### GET /health
 ```
 GET /health
