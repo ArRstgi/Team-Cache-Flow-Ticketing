@@ -61,16 +61,30 @@ app.post('/refund', async (req, res) => {
   // --- 1. Confirm purchase exists via Purchase Service ---
   let purchase;
   try {
-    const purchaseRes = await fetch(`${PURCHASE_SERVICE_URL}/purchases/${purchase_id}?user_id=${user_id}`);
+    // const purchaseRes = await fetch(`${PURCHASE_SERVICE_URL}/purchases/${purchase_id}?user_id=${user_id}`);
 
-    if (purchaseRes.status === 404) {
-      return res.status(404).json({ error: 'Purchase not found' });
-    }
-    if (!purchaseRes.ok) {
-      return res.status(502).json({ error: 'Purchase service error' });
-    }
+    // if (purchaseRes.status === 404) {
+    //   return res.status(404).json({ error: 'Purchase not found' });
+    // }
+    // if (!purchaseRes.ok) {
+    //   return res.status(502).json({ error: 'Purchase service error' });
+    // }
 
-    purchase = await purchaseRes.json();
+    // purchase = await purchaseRes.json();
+    console.log(`
+      This is where the refund service would call the purchase service
+      to confirm the purchase was made in the past. Currently this is not implemented.
+    `)
+
+    purchase = {
+      purchase_id: "test_purchase_id_1", 
+      user_id: "test_user_id_1",
+      event_id: "test_event_id_1",
+      seat_number: 10,
+      amountPaid: 100,
+      currency: "USD",
+      purchasedAt: Date.now(),
+    }
   } catch (err) {
     console.error('Failed to reach purchase service:', err);
     return res.status(503).json({ error: 'Purchase service unreachable' });
@@ -123,7 +137,7 @@ app.post('/refund', async (req, res) => {
       'INSERT INTO refunds (purchase_id, user_id, refunded_at) VALUES ($1, $2, NOW())',
       [purchase_id, user_id]
     );
-    console.log(`Wrote to refunds database: ${{ purchase_id, user_id, refunded_at: Date.now()}}`)
+    console.log(`Wrote to refunds database: ${JSON.stringify({ purchase_id, user_id, refunded_at: Date.now()})}`)
   } catch (err) {
     // Payment went through but we failed to record it - log loudly for manual reconciliation
     console.error('CRITICAL: Refund processed but failed to record in DB:', { user_id, purchase_id, err });
