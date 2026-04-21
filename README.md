@@ -12,17 +12,17 @@
 
 ## Team and Service Ownership
 
-| Team Member | Services / Components Owned                            |
-| ----------- | ------------------------------------------------------ |
-| Mihir Nagarkatti | Compose/Docker Skeleton/Sprint Plan  |
-| Edison Zheng     | `refund/`                |
-| Casey Hammill    | `k6/`                    |
-| Arush Rastogi    | `payment/`               |
-| Daniel Brown     | `frontend/`              |
-| Michael Ye       | `catalog/`               |
-| Enver Amboy      | `purchase/`              |
-| Hayun Jung       | `notifications/`         |
-| Mahad Mushtaq    | Sprint Report       |
+| Team Member | Files / Directories Owned in Sprint 2 |
+| ----------- | ------------------------------------- |
+| Enver Amboy      | `purchases` |
+| Arush Rastogi    | `payment` |
+| Hayun Jung       | `notifications` |
+| Mihir Nagarkatti | `refund` |
+| Casey Hammill    | `k6`, `fraud-detection`|
+| Michael Ye       | `event-catalog`|
+| Mahad Mushtaq    | `analytics-worker`|
+| Edison Zheng     | `waitlist-worker`|
+| Daniel Brown     | `frontend`|
 
 
 > Ownership is verified by `git log --author`. Each person must have meaningful commits in the directories they claim.
@@ -54,16 +54,20 @@ docker compose exec holmes bash
 catalog       http://localhost:3001
 payment       http://localhost:3002
 notification  http://localhost:3003
+waitlist      http://localhost:3010
 purchase      http://localhost:9001
-refund        (no host port — internal only)
+refund        http://localhost:3004
 holmes        (no port — access via exec)
+frontend      http://localhost:80
 ```
 
 > From inside holmes, services are reachable by their Docker service name:
-> `curl http://catalog:3000/health`
-> `curl http://payment:3000/health`
-> `curl http://purchase:9001/health`
-> `curl http://refund:3001/health`
+> curl http://catalog:3000/health
+> curl http://purchase:9001/health
+> curl http://payment:3000/health
+> curl http://notification:3000/health
+> curl http://waitlist:3010/health
+> curl http://refund:3000/health
 >
 > See [holmes/README.md](holmes/README.md) for a full tool reference.
 
@@ -71,7 +75,7 @@ holmes        (no port — access via exec)
 
 ## System Overview
 
-N/A
+[TODO]
 
 ---
 
