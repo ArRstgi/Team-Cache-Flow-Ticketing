@@ -236,10 +236,17 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # fraud-detection:
-  #  build: ./fraudDetection
-  #  networks:
-  #    - team-net  
+  fraud-detection:
+   build: ./fraudDetection
+   networks:
+     - team-net  
+   environment:
+      REDIS_URL: redis://redis:6379
+      SERVICE_NAME: fraud-detection
+   depends_on:
+      redis:
+        condition: service_healthy
+   restart: unless-stopped
 
   # frontend:
   #  build: ./frontend
