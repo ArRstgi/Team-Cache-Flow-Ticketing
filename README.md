@@ -89,6 +89,91 @@ N/A
 
 ---
 
+### [Waitlist]
+
+### GET /health
+
+```
+GET /health
+
+  Returns the health status of this worker, Redis and waitlist queues, queue depth, DLQ depth, timestamp of last processed job, and total count of processed jobs.
+
+  Responses:
+    200  Worker and all dependencies healthy
+    503  One or more dependencies unreachable
+```
+
+**Example request:**
+
+```bash
+curl http://localhost:[3010]/health
+```
+
+**Example response (200):**
+
+```json
+{
+  "status": "healthy",
+  "service": "waitlist",
+  "timestamp": "2026-04-21T14:53:17.616Z",
+  "uptime_seconds": 18,
+  "checks":
+    {
+      "redis":
+        {
+          "status": "healthy",
+          "latency_ms": 1
+        },
+      "queue":
+        {
+          "status": "healthy",
+          "depth": 4,
+          "dlq_depth": 0
+        },
+      "worker":
+        {
+          "status": "healthy",
+          "last_job_at": "never",
+          "jobs_processed": 0,
+          "seconds_since_last_job": null
+        }
+      }
+}
+```
+
+**Example response (503):**
+
+```json
+{
+  "status": "unhealthy",
+  "service": "waitlist",
+  "timestamp": "2026-04-21T14:53:17.616Z",
+  "uptime_seconds": 0,
+  "checks":
+    {
+      "redis":
+        {
+          "status": "unhealthy",
+          "error": "connection refused"
+        },
+      "queue":
+        {
+          "status": "unhealthy",
+          "error": "connection refused"
+        },
+      "worker":
+        {
+          "status": "degraded",
+          "last_job_at": "never",
+          "jobs_processed": 0,
+          "seconds_since_last_job": null
+        }
+      }
+}
+```
+
+---
+
 ### [Service Name]
 
 ### GET /health
