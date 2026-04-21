@@ -110,7 +110,7 @@ app.get('/health', async (req, res) => {
       process.env.DLQ_NAME ?? `waitlist:dlq`
     )
     checks.queue = {
-      status: depth.total_depth < 1000 ? 'healthy' : 'degraded',
+      status: depth < 1000 ? 'healthy' : 'degraded',
       depth,
       dlq_depth: dlqDepth,
     }
