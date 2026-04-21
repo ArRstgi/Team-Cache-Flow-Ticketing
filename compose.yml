@@ -189,7 +189,6 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379
       - WORKER_NAME=waitlist
-      - QUEUE_NAME=waitlist_queue
       - DLQ_NAME=waitlist_dlq
       - PORT=3010
     healthcheck:
