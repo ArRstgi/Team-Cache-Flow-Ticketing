@@ -40,18 +40,18 @@ services:
   # See holmes/README.md for a full tool reference.
 
 
-  # holmes:
-  #   build:
-  #     context: ./holmes
-  #     dockerfile: Dockerfile
-  #   container_name: holmes
-  #   restart: unless-stopped
-  #   volumes:
-  #     - .:/workspace
-  #   networks:
-  #     - team-net
-  #   environment:
-  #     - TERM=xterm-256color
+  holmes:
+    build:
+      context: ./holmes
+      dockerfile: Dockerfile
+    container_name: holmes
+    restart: unless-stopped
+    volumes:
+      - .:/workspace
+    networks:
+      - team-net
+    environment:
+      - TERM=xterm-256color
 
 
     # Holmes has no ports — access it via: docker compose exec holmes bash
@@ -214,14 +214,14 @@ services:
     networks:
       - team-net  
     ports:
-      - "3003:3000"
+      - "3004:3000"
     environment:
       DATABASE_URL: postgres://app:secret@refund-db:5432/refunds
       REDIS_URL: redis://redis:6379
       SERVICE_NAME: refund
       PORT: 3000
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
       interval: 10s 
       timeout: 5s 
       retries: 3 
