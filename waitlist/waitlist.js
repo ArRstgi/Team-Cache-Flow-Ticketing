@@ -20,21 +20,21 @@ await subscriber.subscribe('seat.released',async (data) => {
 
 // For testing, we can push some entries onto the waitlist
 await redis.rPush(
-  "waitlist:event1",
+  "waitlist:test_event_id_1",
   JSON.stringify({
     userId: "userA"
   })
 )
 
 await redis.rPush(
-  "waitlist:event1",
+  "waitlist:test_event_id_1",
   JSON.stringify({
     userId: "userB"
   })
 )
 
 await redis.rPush(
-  "waitlist:event2",
+  "waitlist:test_event_id_1",
   JSON.stringify({
     userId: "userC"
   })
