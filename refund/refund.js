@@ -75,6 +75,7 @@ app.post('/refund', async (req, res) => {
       This is where the refund service would call the purchase service
       to confirm the purchase was made in the past. Currently this is not implemented.
     `)
+
     purchase = {
       purchase_id: "test_purchase_id_1", 
       user_id: "test_user_id_1",
@@ -84,7 +85,6 @@ app.post('/refund', async (req, res) => {
       currency: "USD",
       purchasedAt: Date.now(),
     }
-    // Assumed shape: { purchase_id, user_id, item_id, amountPaid, currency, purchasedAt }
   } catch (err) {
     console.error('Failed to reach purchase service:', err);
     return res.status(503).json({ error: 'Purchase service unreachable' });
@@ -108,29 +108,24 @@ app.post('/refund', async (req, res) => {
 
   // --- 3. Call Payment Service to execute the refund ---
   try {
+    const paymentRes = await fetch(`${PAYMENT_SERVICE_URL}/refunds`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id,
+        purchase_id,
+        amount: purchase.amountPaid,
+        currency: purchase.currency,
+      }),
+    });
 
-    // const paymentRes = await fetch(`${PAYMENT_SERVICE_URL}/refunds`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({
-    //     user_id,
-    //     purchase_id,
-    //     amount: purchase.amountPaid,
-    //     currency: purchase.currency,
-    //   }),
-    // });
+    if (!paymentRes.ok) {
+      const paymentErr = await paymentRes.json().catch(() => ({}));
+      console.error('Payment service rejected refund:', paymentErr);
+      return res.status(502).json({ error: 'Payment refund failed', details: paymentErr });
+    }
 
-    // if (!paymentRes.ok) {
-    //   const paymentErr = await paymentRes.json().catch(() => ({}));
-    //   console.error('Payment service rejected refund:', paymentErr);
-    //   return res.status(502).json({ error: 'Payment refund failed', details: paymentErr });
-    // }
-
-    console.log(`
-      This is where the refund service would call the payments service
-      to actually execute the refund. Currently this is not implemented.
-    `)
-
+    console.log(`Refund processed via payment service: ${purchase_id}`);
   } catch (err) {
     console.error('Failed to reach payment service:', err);
     return res.status(503).json({ error: 'Payment service unreachable' });
@@ -142,7 +137,7 @@ app.post('/refund', async (req, res) => {
       'INSERT INTO refunds (purchase_id, user_id, refunded_at) VALUES ($1, $2, NOW())',
       [purchase_id, user_id]
     );
-    console.log(`Wrote to refunds database: ${{ purchase_id, user_id, refunded_at: Date.now()}}`)
+    console.log(`Wrote to refunds database: ${JSON.stringify({ purchase_id, user_id, refunded_at: Date.now()})}`)
   } catch (err) {
     // Payment went through but we failed to record it - log loudly for manual reconciliation
     console.error('CRITICAL: Refund processed but failed to record in DB:', { user_id, purchase_id, err });

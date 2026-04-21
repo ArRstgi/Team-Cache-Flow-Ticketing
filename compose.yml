@@ -212,24 +212,28 @@ services:
     build: ./refund
     container_name: refund
     networks:
-      - team-net  
+      - team-net
     ports:
       - "3004:3000"
     environment:
       DATABASE_URL: postgres://app:secret@refund-db:5432/refunds
       REDIS_URL: redis://redis:6379
+      PURCHASE_SERVICE_URL: http://purchase:9001
+      PAYMENT_SERVICE_URL: http://payment:3000
       SERVICE_NAME: refund
       PORT: 3000
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
-      interval: 10s 
-      timeout: 5s 
-      retries: 3 
-      start_period: 15s 
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     depends_on:
       refund-db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      payment:
         condition: service_healthy
     restart: unless-stopped
 
