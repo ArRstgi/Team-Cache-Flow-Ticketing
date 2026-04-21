@@ -150,6 +150,150 @@ curl http://catalog:3000/health
 ```
 
 ---
+### Purchase
+
+#### Primary Function:
+
+Take an object of 
+
+```
+{
+  user_id: String, 
+  seat_number: String, 
+  event_id: String
+}
+```
+
+and transform it into:
+
+```
+{
+  user_id TEXT UNIQUE NOT NULL,
+  seat_number TEXT NOT NULL,
+  event_id TEXT NOT NULL,
+  purchase_id UUID DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+}
+```
+
+in which ```purchase_id``` and ```created_at``` are default. This is added to the ```purchases``` database. Returns JSON of added entry along with a duplicate field, indicating if an entry of that user_id already exists on the database. Handles idempotency via ```user_id```, in which on detecting an existing entry with the same ```user_id``` returns that entry along with code ```200```, else ```201```.
+
+#### Endpoints:
+
+##### GET /health
+
+```
+GET /health
+
+  Returns the health status of this service and its dependencies (redis and postgresql).
+
+  Responses:
+    200  Service and all dependencies healthy
+    503  One or more dependencies unreachable
+```
+
+##### GET /
+
+```
+GET /
+
+  Returns HTML Purchase is Online!
+```
+
+##### POST /purchase
+
+```
+  Post a payload to be processed and placed on purchases queue.
+
+  Request:
+    {
+      user_id: String,
+      seat_number: String,
+      event_id: String
+    }
+  
+  Responses:
+    201 New entry, added to database.
+    {
+      duplicate: false,
+      user_id,
+      seat_number,
+      event_id,
+      purchase_id,
+      created_at
+    }
+    200 Duplicate entry (determined by user_id), not added.
+    {
+      duplicate: true,
+      user_id,
+      seat_number,
+      event_id,
+      purchase_id,
+      created_at
+    }
+```
+
+###### Example Request
+```
+  {
+    user_id: 1e1
+    seat_number: a2
+    event_id: cool
+  }
+```
+
+###### Example Response
+```
+  {
+    duplicate: true
+    user_id: 1e1
+    seat_number: a2
+    event_id: cool
+    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
+    created_at: 2023-03-16 16:35:20.703644+11
+  }
+```
+
+##### GET /manual_test
+
+```
+  Allows for manual entry of payload to be sent to /purchase.
+```
+
+##### GET /dump_db
+
+```
+  Dumps purchases database.
+
+  Responses:
+    200
+    {
+      rows: all database rows
+    }
+```
+
+###### Example Response
+```
+  {
+    rows: [
+      {
+        user_id: 1e1
+        seat_number: a2
+        event_id: cool
+        purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
+        created_at: 2023-03-16 16:35:20.703644+11
+      },
+      {
+        user_id: d21
+        seat_number: a3
+        event_id: swag
+        purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
+        created_at: 2023-03-16 16:35:20.703644+11
+      },
+    ]
+  }
+```
+---
 
 #### GET /events
 
