@@ -18,6 +18,54 @@ await subscriber.subscribe('seat.released', (data) => {
   handleSeatReleased(event);
 });
 
+// For testing, we can push some entries onto the waitlist
+await redis.lPush(
+  "waitlist:event1",
+  JSON.stringify({
+    userId: "userA"
+  })
+)
+
+await redis.lPush(
+  "waitlist:event1",
+  JSON.stringify({
+    userId: "userB"
+  })
+)
+
+await redis.lPush(
+  "waitlist:event2",
+  JSON.stringify({
+    userId: "userC"
+  })
+)
+
+async function handleSeatReleased(event) {
+  const {event_id, seat_number} = event;
+  const data = await redis.lPop(`waitlist:${event_id}`);
+  if (!data) {
+    console.log(`No waitlist entries for event ${event_id}`);
+    return;
+  }
+  try {
+    const waitlistEntry = JSON.parse(data);
+    await redis.publish(
+    "seat.purchase",
+    JSON.stringify({
+      user_id: waitlistEntry.userId,
+      seat_number: seat_number,
+      event_id: event_id,
+    }));
+    console.log(`Published seat.purchase event for user ${waitlistEntry.userId} on seat ${seat_number} for event ${event_id}`);
+    recordJobProcessed();
+  } 
+  catch (err) {
+    console.error(`Error parsing waitlist entry for event ${event_id}: ${err.message}`);
+    await redis.rPush(process.env.DLQ_NAME ?? `waitlist:dlq`, data); 
+    return;
+  }
+}
+
 const startTime = Date.now()
 let lastJobAt = null
 let jobsProcessed = 0
