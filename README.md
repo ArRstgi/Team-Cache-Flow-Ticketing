@@ -639,7 +639,177 @@ curl -X POST http://refund:3000/refund \
   {"message":"Refund successful and seat released"}
 ```
 
+---
 
+### Payment
+
+#### GET /health
+
+```
+GET /health
+
+  Returns the health status of this service and its Redis dependency.
+
+  Responses:
+    200  Service and all dependencies healthy
+    503  One or more dependencies unreachable
+```
+
+**Example request:**
+
+```bash
+curl http://payment:3000/health
+```
+
+**Example response (200):**
+
+```json
+{
+  "status": "healthy",
+  "service": "payment",
+  "timestamp": "2026-04-21T15:00:00.000Z",
+  "uptime_seconds": 120,
+  "checks": {
+    "redis": {
+      "status": "healthy",
+      "latency_ms": 1
+    }
+  }
+}
+```
+
+**Example response (503):**
+
+```json
+{
+  "status": "unhealthy",
+  "service": "payment",
+  "timestamp": "2026-04-21T15:00:00.000Z",
+  "uptime_seconds": 5,
+  "checks": {
+    "redis": {
+      "status": "unhealthy",
+      "latency_ms": 0
+    }
+  }
+}
+```
+
+---
+
+#### POST /payment
+
+```
+POST /payment
+
+  Processes a payment for a given amount using the provided payment token.
+  A payment_token beginning with "fail" will simulate a failed payment.
+
+  Request body:
+    {
+      "amount":        Number  (required),
+      "payment_token": String  (required)
+    }
+
+  Responses:
+    200  Payment processed (check "success" field for result)
+    400  Missing or invalid fields
+```
+
+**Example request:**
+
+```bash
+curl -X POST http://payment:3000/payment \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 99.99, "payment_token": "tok_abc123"}'
+```
+
+**Example response (200 — success):**
+
+```json
+{
+  "success": true,
+  "transaction_id": "txn_1713711600000"
+}
+```
+
+**Example response (200 — failure):**
+
+```json
+{
+  "success": false,
+  "transaction_id": null
+}
+```
+
+**Example response (400):**
+
+```json
+{
+  "error": "amount and payment_token are required"
+}
+```
+
+---
+
+#### POST /refunds
+
+```
+POST /refunds
+
+  Processes a refund for a prior purchase.
+  A user_id beginning with "fail" will simulate a failed refund.
+
+  Request body:
+    {
+      "user_id":     String  (required),
+      "purchase_id": String  (required),
+      "amount":      Number  (required),
+      "currency":    String  (required)
+    }
+
+  Responses:
+    200  Refund processed (check "success" field for result)
+    400  Missing or invalid fields
+```
+
+**Example request:**
+
+```bash
+curl -X POST http://payment:3000/refunds \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "user_42", "purchase_id": "purch_99", "amount": 99.99, "currency": "USD"}'
+```
+
+**Example response (200 — success):**
+
+```json
+{
+  "success": true,
+  "refund_id": "ref_1713711600000",
+  "message": "Refund processed successfully"
+}
+```
+
+**Example response (200 — failure):**
+
+```json
+{
+  "success": false,
+  "refund_id": null,
+  "message": "Refund failed"
+}
+```
+
+**Example response (400):**
+
+```json
+{
+  "error": "user_id, purchase_id, amount, and currency are required"
+}
+```
+
+---
 
 ### GET /health
 ```
