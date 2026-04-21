@@ -13,17 +13,19 @@ client.on('error', err => {
   console.error('Fraud Detection Redis error:', err.message)
 })
 
-let testOrder1 = {
-    purchaseId: '1',
-    userId: 'steve',
-    timestamp: new Date().toISOString()
-}
-
-
-
+// let testOrder1 = {
+//     purchaseId: '1',
+//     userId: 'steve',
+//     timestamp: new Date().toISOString()
+// }
 
 async function processJob(order) {
   let fraud = false
+  if ('isFraud' in order)
+  {
+    //already checked
+    return
+  }
   await client.expire(order.purchaseId, ttlSec)
   userHistory.push(order.userId)
   timeHistory.push(order.timestamp)
@@ -32,12 +34,19 @@ async function processJob(order) {
   let temp2 = []
   if (count > 2)
     temp.forEach((i) => temp2.push(timeHistory[i]))
-    console.log(temp2)
-  
+    temp2.forEach((val, i) => temp2[i] = Date.parse(val))
+    //console.log(temp2)
+    for (let i = 0; i < temp2.length - 1; i++) {
+        if (Math.abs(temp2[i] - temp2[i + 1]) < 60000 ) {
+            console.log(`Fraud detected`);
+            fraud = true;
+            break;
+        }
+}
   await client.hSet(order.purchaseId, {
         isFraud: String(fraud),
       })
-  await client.lPush(queueName, JSON.stringify(order))
+  // await client.lPush(queueName, JSON.stringify(order))
 
 }
 
@@ -69,7 +78,7 @@ async function loop() {
 
 await client.connect()
 console.log(`Fraud detection worker connected`)
-await client.lPush(queueName, JSON.stringify(testOrder1))
-await client.lPush(queueName, JSON.stringify(testOrder1))
-await client.lPush(queueName, JSON.stringify(testOrder1))
+// await client.lPush(queueName, JSON.stringify(testOrder1))
+// await client.lPush(queueName, JSON.stringify(testOrder1))
+// await client.lPush(queueName, JSON.stringify(testOrder1))
 await loop()
