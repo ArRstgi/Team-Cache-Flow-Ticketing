@@ -74,6 +74,7 @@ frontend      http://localhost:80
 > curl http://notification:3000/health
 > curl http://waitlist:3010/health
 > curl http://refund:3000/health
+> curl http://frontend:3010/health
 >
 > See [holmes/README.md](holmes/README.md) for a full tool reference.
 
@@ -140,6 +141,42 @@ curl http://localhost:[port]/health
 <!-- Add the rest of your endpoints below. One ### section per endpoint. -->
 
 ---
+
+### Frontend
+#### GET /
+```
+GET /
+    Returns a basic HTML page that can be used to monitor what is happening in the system.
+
+    Responses:
+        200   Service is working correctly
+        500   One or more dependencies failed
+```
+Example request:
+```
+curl http://localhost/
+```
+Example response (200):
+```html
+<!DOCTYPE HTML>
+...
+```
+#### Get /health
+```
+GET /health
+    Returns the health of this service.
+
+    Responses:
+        200   Service is working correctly
+        500   One or more dependencies failed
+```
+Example response (200):
+```json
+{
+    "status": "healthy",
+    "service": "frontend"
+}
+```
 
 ## Sprint History
 
