@@ -96,7 +96,227 @@ N/A
 
 ---
 
-### [Service Name]
+### Event Catalog
+
+
+#### GET /health
+
+```
+GET /health
+
+  Returns the health status of this service and its dependencies.
+
+  Responses:
+    200  Service and all dependencies healthy
+    503  One or more dependencies unreachable
+```
+
+**Example request:**
+
+```bash
+curl http://catalog:3000/health
+```
+
+**Example response (200):**
+
+```json
+{
+  "status": "healthy",
+  "checks": {
+    "database": {
+      "status": "healthy"
+    },
+    "redis": {
+      "status": "healthy"
+    }
+  }
+}
+```
+
+**Example response (503):**
+
+```json
+{
+  "status": "unhealthy",
+  "checks": {
+    "database": {
+      "status": "healthy"
+    },
+    "redis": {
+      "status": "unreachable"
+    }
+  }
+}
+```
+
+---
+
+#### GET /events
+
+```
+GET /events
+
+  Returns a list of all events in the catalog.
+
+  Responses:
+    200  Successful response containing an array of events
+    500  Internal Server Error
+```
+
+**Example request:**
+
+```bash
+curl http://catalog:3000/events
+```
+
+**Example response (200):**
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Laufey Tour",
+    "venue": "Madison Square Garden",
+    "date": "2025-05-05T15:55:55.000Z",
+    "total_seats": 55000,
+    "available_seats": 55000
+  },
+  {
+    "id": 2,
+    "name": "Boston Celtics vs. Thunder",
+    "venue": "TD Garden",
+    "date": "2023-04-15T12:35:00.000Z",
+    "total_seats": 50000,
+    "available_seats": 30000
+  }
+]
+```
+
+**Example response (500):**
+
+```json
+{
+  "error": "Internal Server Error"
+}
+```
+
+---
+
+#### GET /events/:id
+
+```
+GET /events/:id
+
+  Returns details for a specific event by its ID.
+
+  Responses:
+    200  Successful response containing the event details
+    404  Event not found
+    500  Internal Server Error
+```
+
+**Example request:**
+
+```bash
+curl http://catalog:3000/events/1
+```
+
+**Example response (200):**
+
+```json
+{
+  "id": 1,
+  "name": "Laufey Tour",
+  "venue": "Madison Square Garden",
+  "date": "2025-05-05T15:55:55.000Z",
+  "total_seats": 55000,
+  "available_seats": 55000
+}
+```
+
+**Example response (404):**
+
+```json
+{
+  "error": "Event not found"
+}
+```
+
+**Example response (500):**
+
+```json
+{
+  "error": "Internal Server Error"
+}
+```
+
+---
+
+#### GET /events/:id/seats
+
+```
+GET /events/:id/seats
+
+  Returns the seat map for a specific event by its ID.
+
+  Responses:
+    200  Successful response containing an array of seats
+    500  Internal Server Error
+```
+
+**Example request:**
+
+```bash
+curl http://catalog:3000/events/1/seats
+```
+
+**Example response (200):**
+
+```json
+[
+  {
+    "id": 1,
+    "section": "VIP",
+    "row": "A",
+    "seat_number": 1
+  },
+  {
+    "id": 2,
+    "section": "VIP",
+    "row": "A",
+    "seat_number": 2
+  },
+  {
+    "id": 3,
+    "section": "VIP",
+    "row": "A",
+    "seat_number": 3
+  },
+  {
+    "id": 4,
+    "section": "101",
+    "row": "G",
+    "seat_number": 15
+  },
+  {
+    "id": 5,
+    "section": "101",
+    "row": "G",
+    "seat_number": 16
+  }
+]
+```
+
+**Example response (500):**
+
+```json
+{
+  "error": "Internal Server Error"
+}
+```
+
+---
+
 
 ### GET /health
 
