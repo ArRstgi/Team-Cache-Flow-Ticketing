@@ -318,6 +318,100 @@ curl http://catalog:3000/events/1/seats
 ---
 
 
+### Refund
+
+#### GET /health
+```
+GET /health
+
+  Returns the health status of this service and its dependencies.
+
+  Responses:
+    200  Service and all dependencies healthy
+    503  One or more dependencies unreachable
+```
+
+**Example request:**
+```bash
+curl http://refund:3000/health
+```
+**Example response (200):**
+
+```json
+{
+  "checks" : {
+    "database" : {
+      "latency_ms" : 1,
+      "status" : "healthy"
+    },
+    "redis" : {
+      "latency_ms" : 0,
+      "status" : "healthy"
+    }
+  },
+  "service" : "refund",
+  "status" : "healthy",
+  "timestamp" : "2026-04-21T14:40:45.373Z",
+  "uptime_seconds" : 349
+}
+```
+
+**Example Response (503)**
+```json
+{
+  "checks" : {
+    "database" : {
+      "error" : "getaddrinfo ENOTFOUND refund-db",
+      "status" : "unhealthy"
+    },
+    "redis" : {
+      "latency_ms" : 1,
+      "status" : "healthy"
+    }
+  },
+  "service" : "refund",
+  "status" : "unhealthy",
+  "timestamp" : "2026-04-21T14:44:35.723Z",
+  "uptime_seconds" : 22
+}
+```
+
+#### POST /refund
+
+**Example Request**
+```bash
+curl -X POST http://refund:3000/refund \
+  -H "Content-Type: application/json" \
+  -d '{"purchase_id": "test_key_1", "user_id": "test_user_id_1"}' 
+```
+
+**Example Response (400)** (if the object passed to curl's -d option was missing "purchase_id" or "user_id"):
+```json
+  {"error":"Missing required fields: user_id and purchase_id"}
+```
+**Example Response (409)** (if the "purchase_id" had already been refunded):
+```json
+  {"error":"Purchase has already been refunded"}
+```
+**Example Response (500)** (if the refund database was down):
+```json
+  {"error":"Database error while checking refund status"}
+```
+**Example Response (502)** (if the refund payment itself failed):
+```json
+  {"error":"Payment refund failed", "details": "Payment error"}
+```
+**Example Response (503)** (if the payment service is unreachable):
+```json
+  {"error":"Payment service unreachable"}
+```
+**Example Response (200)** (if the payment service is unreachable):
+```json
+  {"message":"Refund successful and seat released"}
+```
+
+
+
 ### GET /health
 
 ```
