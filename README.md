@@ -16,6 +16,20 @@
 | Enver Amboy      | `purchase/`              |
 | Hayun Jung       | `notifications/`         |
 | Mahad Mushtaq    | `analytics-worker/`, Sprint Reports |
+
+| Team Member | Files / Directories Owned in Sprint 2 |
+| ----------- | ------------------------------------- |
+| Enver Amboy      | `purchases` |
+| Arush Rastogi    | `payment` |
+| Hayun Jung       | `notifications` |
+| Mihir Nagarkatti | `refund` |
+| Casey Hammill    | `k6`, `fraud-detection`|
+| Michael Ye       | `event-catalog`|
+| Mahad Mushtaq    | `analytics-worker`|
+| Edison Zheng     | `waitlist-worker`|
+| Daniel Brown     | `frontend`|
+
+
 > Ownership is verified by `git log --author`. Each person must have meaningful commits in the directories they claim.
 ---
 ## How to Start the System
@@ -30,16 +44,25 @@ docker compose ps
 docker compose logs -f
 # Open a shell in the holmes investigation container
 docker compose exec holmes bash
+
+# Run k6 tests
+docker compose exec holmes bash
+k6 run k6/sprint-1.js
+k6 run k6/sprint-2-cache.js
+k6 run k6/sprint-2-async.js
 ```
 ### Base URLs (development)
 ```
 catalog       http://localhost:3001
 payment       http://localhost:3002
 notification  http://localhost:3003
+waitlist      http://localhost:3010
 purchase      http://localhost:9001
 analytics     http://localhost:3005
 refund        (no host port — internal only)
+refund        http://localhost:3004
 holmes        (no port — access via exec)
+frontend      http://localhost:80
 ```
 > From inside holmes, services are reachable by their Docker service name:
 > `curl http://catalog:3000/health`
@@ -47,11 +70,21 @@ holmes        (no port — access via exec)
 > `curl http://purchase:9001/health`
 > `curl http://refund:3001/health`
 > `curl http://analytics:3005/health`
+> curl http://catalog:3000/health
+> curl http://purchase:9001/health
+> curl http://payment:3000/health
+> curl http://notification:3000/health
+> curl http://waitlist:3010/health
+> curl http://refund:3000/health
+> curl http://frontend:3010/health
 >
 > See [holmes/README.md](holmes/README.md) for a full tool reference.
 ---
 ## System Overview
 N/A
+
+[TODO]
+
 ---
 ## API Reference
 <!--
@@ -105,6 +138,43 @@ GET /health
 ```bash
 curl http://localhost:3005/health
 ```
+### Frontend
+#### GET /
+```
+GET /
+    Returns a basic HTML page that can be used to monitor what is happening in the system.
+
+    Responses:
+        200   Service is working correctly
+        500   One or more dependencies failed
+```
+Example request:
+```
+curl http://localhost/
+```
+Example response (200):
+```html
+<!DOCTYPE HTML>
+...
+```
+#### Get /health
+```
+GET /health
+    Returns the health of this service.
+
+    Responses:
+        200   Service is working correctly
+        500   One or more dependencies failed
+```
+Example response (200):
+```json
+{
+    "status": "healthy",
+    "service": "frontend"
+}
+```
+
+## Sprint History
 
 **Example response (200):**
 ```json
