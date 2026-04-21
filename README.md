@@ -46,6 +46,12 @@ docker compose logs -f
 
 # Open a shell in the holmes investigation container
 docker compose exec holmes bash
+
+# Run k6 tests
+docker compose exec holmes bash
+k6 run k6/sprint-1.js
+k6 run k6/sprint-2-cache.js
+k6 run k6/sprint-2-async.js
 ```
 
 ### Base URLs (development)
