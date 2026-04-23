@@ -1,0 +1,12 @@
+{
+  "name": "analytics-worker",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "ioredis": "^5.3.2",
+    "pg": "^8.11.3"
+  }
+}

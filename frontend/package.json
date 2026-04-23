@@ -10,6 +10,7 @@
     
   },
   "dependencies": {
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "redis": "^5.11.0"
   }
 }
