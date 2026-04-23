@@ -40,18 +40,18 @@ services:
   # See holmes/README.md for a full tool reference.
 
 
-  # holmes:
-  #   build:
-  #     context: ./holmes
-  #     dockerfile: Dockerfile
-  #   container_name: holmes
-  #   restart: unless-stopped
-  #   volumes:
-  #     - .:/workspace
-  #   networks:
-  #     - team-net
-  #   environment:
-  #     - TERM=xterm-256color
+  holmes:
+    build:
+      context: ./holmes
+      dockerfile: Dockerfile
+    container_name: holmes
+    restart: unless-stopped
+    volumes:
+      - .:/workspace
+    networks:
+      - team-net
+    environment:
+      - TERM=xterm-256color
 
 
     # Holmes has no ports — access it via: docker compose exec holmes bash
@@ -179,10 +179,28 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
-  # waitlist:
-  #   build: ./waitlist
-  #   networks:
-  #     - team-net  
+
+  waitlist:
+    build: ./waitlist
+    networks:
+      - team-net  
+    ports:
+      - "3010:3010"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - WORKER_NAME=waitlist
+      - DLQ_NAME=waitlist_dlq
+      - PORT=3010
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3010/health']
+      interval: 10s 
+      timeout: 5s 
+      retries: 3 
+      start_period: 15s
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
   # analytics:
   #   build: ./analytics
@@ -193,28 +211,42 @@ services:
     build: ./refund
     container_name: refund
     networks:
-      - team-net  
+      - team-net
+    ports:
+      - "3004:3000"
     environment:
       DATABASE_URL: postgres://app:secret@refund-db:5432/refunds
       REDIS_URL: redis://redis:6379
+      PURCHASE_SERVICE_URL: http://purchase:9001
+      PAYMENT_SERVICE_URL: http://payment:3000
       SERVICE_NAME: refund
+      PORT: 3000
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
-      interval: 10s 
-      timeout: 5s 
-      retries: 3 
-      start_period: 15s 
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     depends_on:
       refund-db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      payment:
+        condition: service_healthy
     restart: unless-stopped
 
-  # fraud-detection:
-  #  build: ./fraudDetection
-  #  networks:
-  #    - team-net  
+  fraud-detection:
+   build: ./fraudDetection
+   networks:
+     - team-net  
+   environment:
+      REDIS_URL: redis://redis:6379
+      SERVICE_NAME: fraud-detection
+   depends_on:
+      redis:
+        condition: service_healthy
+   restart: unless-stopped
 
   frontend:
     build: ./frontend
@@ -270,6 +302,7 @@ services:
       POSTGRES_PASSWORD: secret
     volumes:
       - refund-data:/var/lib/postgresql/data
+      - ./refund/db:/docker-entrypoint-initdb.d
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U app -d refunds']
       interval: 5s
@@ -319,7 +352,53 @@ services:
 # ── Named volumes ──────────────────────────────────────────────────────────────
 # Declare a volume for each database here, e.g.:
 #
+
+  analytics:
+    build: ./analytics
+    container_name: analytics
+    restart: unless-stopped
+    ports:
+      - "3005:3005"
+    networks:
+      - team-net
+    environment:
+      - DATABASE_URL=postgres://app:secret@analytics-db:5432/analytics
+      - REDIS_URL=redis://redis:6379
+      - PORT=3005
+      - QUEUE_NAME=analytics:queue
+    depends_on:
+      analytics-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3005/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  analytics-db:
+    image: postgres:16
+    container_name: analytics-db
+    restart: unless-stopped
+    networks:
+      - team-net
+    environment:
+      POSTGRES_DB: analytics
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - analytics-data:/var/lib/postgresql/data
+      - ./analytics/db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d analytics"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 volumes:
   refund-data:
   purchase-data:
   postgres-data:
+  analytics-data:
