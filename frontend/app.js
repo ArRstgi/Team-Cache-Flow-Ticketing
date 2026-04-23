@@ -7,8 +7,8 @@ import express from "express";
 import { createClient } from 'redis'
 
 // get env variables
-const inner_port = Number(process.env.INNER_PORT || "3000");
-const outer_port = Number(process.env.OUTER_PORT || "80");
+const SERVICE_INNER_PORT = Number(process.env.INNER_PORT || "3000");
+const SERVICE_OUTER_PORT = Number(process.env.OUTER_PORT || "80");
 const redisUrl = process.env.REDIS_URL || "redis://redis:6379";
 
 
@@ -18,14 +18,17 @@ const serviceData = (process.env.SERVICE_URLS || "")
     .split(" ")
     .filter(str=>str) //nonempty
     .map((str,index)=>{
-        const name_url = str.split(",");
-        const url = name_url[1];
-        const port = url.split(":")[2].split("/")[0]; // http://name:[port]/endpoint
+        const serv_str = str.split(","); //[ name, url, outer_port, inner_port ]
+        const name = serv_str[0];
+        const url = serv_str[1];
+        const port_outer = serv_str[2];
+        const port_inner = serv_str[3];
         return {
-            name: name_url[0],
-            url,
-            port,
-            health_url: `http://localhost:${port}/health`,
+            name,
+            url_inner: `${url}:${port_inner}`,
+            port_inner,
+            port_outer,
+            health_url: `http://localhost:${port_outer}/health`,
             index,
         };
     });
@@ -66,7 +69,7 @@ app.get("/",async (req,res)=>{
     //get /health from all services
     const all_requests = serviceData.map(async (serv)=>{
         const servTitle = `${serv.name} <a href=${serv.health_url} target="_blank">/health</a>`;
-        const healthURL = serv.url + '/health';
+        const healthURL = serv.url_inner + '/health';
         return new Promise(async (resolve)=>{
             await fetch(healthURL)
                 .then(async (response)=>{
@@ -115,7 +118,7 @@ app.get("/",async (req,res)=>{
     //get events
     all_requests.push(new Promise(async (resolve,reject)=>{
         try {
-            await fetch(serviceMap["Catalog"].url+"/events")
+            await fetch(serviceMap["Catalog"].url_inner+"/events")
                 .then(response=>{
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
@@ -173,10 +176,10 @@ app.get("/",async (req,res)=>{
 
 await redisClient.connect();
 
-app.listen(inner_port,()=>{
+app.listen(SERVICE_INNER_PORT,()=>{
     let portstr = "";
-    if (outer_port!=80) {
-        portstr = `:${outer_port}`;
+    if (SERVICE_OUTER_PORT!=80) {
+        portstr = `:${SERVICE_OUTER_PORT}`;
     }
     console.log(`Frontend accessible at http://localhost${portstr}/`);
 });
