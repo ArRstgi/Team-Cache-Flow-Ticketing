@@ -13,6 +13,9 @@ const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const redis = createClient({ url: process.env.REDIS_URL });
 await redis.connect();
 
+const subscriber = redis.duplicate();
+await subscriber.connect();
+
 // Ensure purchases table exists
 await pool.query(`
     CREATE TABLE IF NOT EXISTS purchases (
@@ -27,6 +30,18 @@ await pool.query(`
 const startTime = Date.now();
 
 app.use(express.json());
+
+// Subscribe to waitlist's seat released channel
+await subscriber.subscribe('seat.released', async (data) => {
+    const payload = JSON.parse(data);
+    console.log("Received data from waitlist:", payload);
+    const response = await fetch('http://purchase:9001/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    console.log(`Status of transferring waitlist request to purchase: ${response.status}`);
+});
 
 app.get('/health', async (_req, res) => {
     const checks = {};
