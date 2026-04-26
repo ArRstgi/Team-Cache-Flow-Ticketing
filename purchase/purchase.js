@@ -32,7 +32,7 @@ const startTime = Date.now();
 app.use(express.json());
 
 // Subscribe to waitlist's seat released channel
-await subscriber.subscribe('seat.released', async (data) => {
+await subscriber.subscribe('seat.purchase', async (data) => {
     const payload = JSON.parse(data);
     console.log("Received data from waitlist:", payload);
     const response = await fetch('http://purchase:9001/purchase', {
