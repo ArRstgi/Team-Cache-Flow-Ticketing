@@ -42,13 +42,23 @@ await redis.rPush(
 
 async function handleSeatReleased(event) {
   const {event_id, seat_number} = event;
+  
+  if (!event_id || !seat_number) {
+    console.error(`Invalid seat.released event: ${JSON.stringify(event)}`);
+    return;
+  }
+
   const data = await redis.lPop(`waitlist:${event_id}`);
+
   if (!data) {
     console.log(`No waitlist entries for event ${event_id}`);
     return;
   }
   try {
     const waitlistEntry = JSON.parse(data);
+    if (!waitlistEntry.userId) {
+      throw new Error("Missing userId");
+    }
     await redis.publish(
     "seat.purchase",
     JSON.stringify({
@@ -56,7 +66,7 @@ async function handleSeatReleased(event) {
       seat_number: seat_number,
       event_id: event_id,
     }));
-    console.log(`Published seat.purchase event for user ${waitlistEntry.userId} on seat ${seat_number} for event ${event_id}`);
+    console.log(`Promoted ${waitlistEntry.userId} for event ${event_id}, seat ${seat_number}`);
     recordJobProcessed();
   } 
   catch (err) {
