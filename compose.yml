@@ -202,11 +202,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # analytics:
-  #   build: ./analytics
-  #   networks:
-  #     - team-net  
-  
   refund:
     build: ./refund
     container_name: refund
