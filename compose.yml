@@ -240,6 +240,8 @@ services:
    build: ./fraudDetection
    networks:
      - team-net  
+   ports:
+      - "9002:9002"
    environment:
       REDIS_URL: redis://redis:6379
       SERVICE_NAME: fraud-detection
