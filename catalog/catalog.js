@@ -133,7 +133,82 @@ app.get('/events/:id/seats', async (req, res) => {
   }
 });
 
+// Core Endpoint: Create New Event and Initialize Seats
+app.post('/events', async (req, res) => {
+  const { name, venue, date, total_seats, seats } = req.body;
 
+  // Validate request body
+  if (!name || !venue || !date || total_seats === undefined || !seats || !Array.isArray(seats)) {
+    return res.status(400).json({ 
+      error: 'Missing required fields. Please provide name, venue, date, total_seats, and a seats array.' 
+    });
+  }
+
+  // Check that the seats array length matches the total_seats count
+  if (seats.length !== total_seats) {
+    return res.status(400).json({
+      error: `total_seats is ${total_seats}, but you provided ${seats.length} seats in the array.`
+    });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    // Start transaction
+    await client.query('BEGIN');
+
+    // 1. Insert into events table
+    // We set available_seats = total_seats immediately upon creation
+    const eventInsertQuery = `
+      INSERT INTO events (name, venue, date, total_seats, available_seats)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *;
+    `;
+    const eventResult = await client.query(eventInsertQuery, [name, venue, date, total_seats, total_seats]);
+    const newEvent = eventResult.rows[0];
+    const eventId = newEvent.id;
+
+    // 2. Insert into seats table
+    if (seats.length > 0) {
+      const seatValues = [];
+      const seatParams = [];
+      let paramIndex = 1;
+
+      // Build a parameterized bulk insert query
+      for (const seat of seats) {
+        seatValues.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++})`);
+        seatParams.push(eventId, seat.section, seat.row, seat.seat_number);
+      }
+
+      const seatsInsertQuery = `
+        INSERT INTO seats (event_id, section, row, seat_number)
+        VALUES ${seatValues.join(', ')}
+      `;
+      await client.query(seatsInsertQuery, seatParams);
+    }
+
+    // Commit transaction
+    await client.query('COMMIT');
+
+    // 3. Invalidate the events cache so the new event appears in GET /events
+    await redisClient.del('events:all');
+
+    console.log(`[Replica ${replicaId}] Successfully created event ID ${eventId} with ${total_seats} seats.`);
+    res.status(201).json({ 
+      message: 'Event and seats created successfully', 
+      event: newEvent 
+    });
+
+  } catch (error) {
+    // If anything fails, rollback the whole transaction
+    await client.query('ROLLBACK');
+    console.error(`[Replica ${replicaId}] Error creating event:`, error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  } finally {
+    // Always release the client back to the pool
+    client.release();
+  }
+});
 
 initializeDependencies().then(() => {
   app.listen(port, () => {
