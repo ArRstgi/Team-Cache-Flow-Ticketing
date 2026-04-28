@@ -25,12 +25,12 @@ Do k6 tests for the scaled replicas.
 | Enver Amboy      | `purchase` connections|
 | Arush Rastogi    | `payment` replication|
 | Hayun Jung       | `notifications` connection to purchase|
-| Mihir Nagarkatti | README, sprint plan, sprint report|
-| Casey Hammill    | `k6`|
+| Mihir Nagarkatti | README, sprint plan |
+| Casey Hammill    | `k6` part|
 | Michael Ye       | `event-catalog` replication, caddy initialization|
-| Mahad Mushtaq    | `purchase` replication|
-| Edison Zheng     | `waitlist-worker` connection to purchase|
-| Daniel Brown     | `frontend` polishing, Caddy development|
+| Mahad Mushtaq    | `purchase` replication, Sprint report|
+| Edison Zheng     |  Caddy development |
+| Daniel Brown     | `frontend` polishing, k6 part |
 
 ---
 
