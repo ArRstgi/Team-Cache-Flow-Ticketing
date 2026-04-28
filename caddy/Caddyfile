@@ -3,12 +3,3 @@
         lb_policy round_robin
     }
 }
-// if you want to test using curl, use the below to force load distribution 
-// :80 {
-//     reverse_proxy catalog:3000 {
-//         lb_policy round_robin
-//         transport http {
-//             keepalive off
-//         }
-//     }
-// }
