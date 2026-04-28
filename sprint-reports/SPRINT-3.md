@@ -133,9 +133,9 @@ The worker remained healthy, the malformed message was routed to `analytics:dlq`
 
 | Metric     | Normal-only run | Mixed with poison pills | Change |
 | ---------- | --------------- | ----------------------- | ------ |
-| p95        |  23.7  | 21.4 |  -2  |
-| RPS        |  28.1  | 28.3 |  0   |
-| Error rate |   0%   |  0%  |  0   |
+| p95        |  23.7  | 21.4 |  -2.3  |
+| RPS        |  28.1  | 28.3 |  +0.2  |
+| Error rate |   0%   |  0%  |    0   |
 
 ---
 
