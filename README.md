@@ -245,7 +245,9 @@ Take an object of
 {
   user_id: String, 
   seat_number: String, 
-  event_id: String
+  event_id: String,
+  amount: String,
+  currency: String
 }
 ```
 
@@ -256,6 +258,8 @@ and transform it into:
   user_id TEXT UNIQUE NOT NULL,
   seat_number TEXT NOT NULL,
   event_id TEXT NOT NULL,
+  amount: TEXT NOT NULL,
+  currency: TEXT NOT NULL,
   purchase_id UUID DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT NOW()
 }
@@ -295,6 +299,8 @@ GET /
       user_id: String,
       seat_number: String,
       event_id: String
+      amount: String,
+      currency: String
     }
   
   Responses:
@@ -304,6 +310,8 @@ GET /
       user_id,
       seat_number,
       event_id,
+      amount: String,
+      currency: String
       purchase_id,
       created_at
     }
@@ -313,6 +321,8 @@ GET /
       user_id,
       seat_number,
       event_id,
+      amount: String,
+      currency: String
       purchase_id,
       created_at
     }
@@ -321,20 +331,24 @@ GET /
 ###### Example Request
 ```
   {
-    user_id: 1e1
-    seat_number: a2
-    event_id: cool
+    user_id: 1e1,
+    seat_number: a2,
+    event_id: cool,
+    amount: 200,
+    currency: PHP
   }
 ```
 
 ###### Example Response
 ```
   {
-    duplicate: true
-    user_id: 1e1
-    seat_number: a2
-    event_id: cool
-    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
+    duplicate: true,
+    user_id: 1e1,
+    seat_number: a2,
+    event_id: cool,
+    amount: 200,
+    currency: PHP,
+    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1,
     created_at: 2023-03-16 16:35:20.703644+11
   }
 ```
@@ -343,6 +357,58 @@ GET /
 
 ```
   Allows for manual entry of payload to be sent to /purchase.
+```
+
+#### GET /fetch_purchase
+
+```
+  Retrieves an entry via user_id and purchase_id.
+
+  Request:
+    {
+      user_id,
+      purchase_id
+    }
+
+  Responses:
+    201 Successfully retrieved
+      {
+        user_id,
+        seat_number,
+        event_id,
+        amount,
+        currency,
+        purchase_id,
+        created_at
+      }
+    200 Failed to fetch
+      {
+        user_id,
+        purchase_id,
+        err
+      }
+```
+
+###### Example Request
+```
+  {
+    user_id: 1e1,
+    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
+  }
+```
+
+###### Example Response
+```
+  {
+    duplicate: true
+    user_id: 1e1,
+    seat_number: a2,
+    event_id: cool,
+    amount: 200,
+    currency: PHP,
+    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1,
+    created_at: 2023-03-16 16:35:20.703644+11
+  }
 ```
 
 ##### GET /dump_db
