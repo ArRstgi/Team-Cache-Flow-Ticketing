@@ -1,4 +1,4 @@
-# Sprint 4 Plan — [Team Name]
+# Sprint 4 Plan — Team Cache Flow Ticketing
 
 **Sprint:** 4 — Replication, Scaling, and Polish  
 **Dates:** 04.28 → 05.07  
@@ -8,7 +8,13 @@
 
 ## Goal
 
-[Which services will you replicate? What is the exact `--scale` command? What polish work remains?]
+Replicate Purchase, Payment, and Event Catalog services. 
+
+Polish all remaining functionality. 
+
+Ensure replicas are failure resistant. 
+
+Do k6 tests for the scaled replicas. 
 
 ---
 
@@ -16,29 +22,33 @@
 
 | Team Member | Files / Directories Owned This Sprint |
 | ----------- | ------------------------------------- |
-| [Name]      | `[path]` |
-| [Name]      | `[path]` |
-| [Name]      | `[path]` |
+| Enver Amboy      | `purchase` connections|
+| Arush Rastogi    | `payment` replication|
+| Hayun Jung       | `notifications` connection to purchase|
+| Mihir Nagarkatti | README, sprint plan |
+| Casey Hammill    | `k6` part|
+| Michael Ye       | `event-catalog` replication, caddy initialization|
+| Mahad Mushtaq    | `purchase` replication, Sprint report|
+| Edison Zheng     |  Caddy development |
+| Daniel Brown     | `frontend` polishing, k6 part |
 
 ---
 
 ## Tasks
 
-### [Name]
+### Replication
 
-- [ ] ...
+### Polishing
 
-### [Name]
+### Failure Resistance. 
 
-- [ ] ...
-
-### [Name]
-
-- [ ] ...
+### K6 tests
 
 ---
 
 ## Risks
+
+We need to make sure that the replicated services don't hold internal state.
 
 ---
 
