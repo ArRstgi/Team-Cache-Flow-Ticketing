@@ -44,7 +44,6 @@ When a poison pill is injected into any worker queue, the worker catches it, pus
 
 - Analytics worker shows `(unhealthy)` in `docker compose ps` due to the healthcheck using `wget` which is not available in the Alpine image — a fix using `curl` is in PR #64 awaiting merge. The worker itself is fully functional and responsive on port 3005.
 - Purchase service is not yet pushing to `analytics:queue` — the analytics worker is running and ready but the producer side integration is pending on Enver's sprint3-purchase branch being merged.
-- k6 results pending — to be filled in once Casey's `sprint-3-poison.js` run is completed.
 
 ---
 
@@ -91,14 +90,52 @@ The worker remained healthy, the malformed message was routed to `analytics:dlq`
 ## k6 Results: Poison Pill Resilience (`k6/sprint-3-poison.js`)
 
 ```
-[Paste k6 summary output here]
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: k6/sprint-3-poison.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 20 max VUs, 1m40s max duration (incl. graceful stop):
+              * default: Up to 20 looping VUs for 1m10s over 3 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 1588    22.613089/s
+    checks_succeeded...: 100.00% 1588 out of 1588
+    checks_failed......: 0.00%   0 out of 1588
+
+    ✓ status is 201 or 202
+
+    HTTP
+    http_req_duration..............: avg=10.07ms  min=5.31ms   med=7.63ms   max=84.61ms p(90)=16.48ms  p(95)=21.36ms 
+      { expected_response:true }...: avg=10.07ms  min=5.31ms   med=7.63ms   max=84.61ms p(90)=16.48ms  p(95)=21.36ms 
+    http_req_failed................: 0.00%  0 out of 1974
+    http_reqs......................: 1974   28.109722/s
+
+    EXECUTION
+    iteration_duration.............: avg=511.26ms min=506.06ms med=508.68ms max=586.1ms p(90)=518.43ms p(95)=524.49ms
+    iterations.....................: 1974   28.109722/s
+    vus............................: 1      min=1         max=20
+    vus_max........................: 20     min=20        max=20
+
+    NETWORK
+    data_received..................: 813 kB 12 kB/s
+    data_sent......................: 373 kB 5.3 kB/s
 ```
 
 | Metric     | Normal-only run | Mixed with poison pills | Change |
 | ---------- | --------------- | ----------------------- | ------ |
-| p95        |                 |                         |        |
-| RPS        |                 |                         |        |
-| Error rate |                 |                         |        |
+| p95        |  23.7  | 21.4 |  -2.3  |
+| RPS        |  28.1  | 28.3 |  +0.2  |
+| Error rate |   0%   |  0%  |    0   |
 
 ---
 
