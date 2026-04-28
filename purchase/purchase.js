@@ -22,6 +22,8 @@ await pool.query(`
         user_id TEXT UNIQUE NOT NULL,
         seat_number TEXT NOT NULL,
         event_id TEXT NOT NULL,
+        amount TEXT UNIQUE NOT NULL,
+        currency TEXT UNIQUE NOT NULL,
         purchase_id UUID DEFAULT gen_random_uuid(),
         created_at TIMESTAMPTZ DEFAULT NOW()
     );
@@ -86,9 +88,11 @@ app.post('/purchase', async (req, res) => {
     const user_id = String(payload.user_id);
     const seat_number = String(payload.seat_number);
     const event_id = String(payload.event_id);
+    const amount = String(payload.amount);
+    const currency = String(payload.currency);
 
     try {
-        await pool.query(`INSERT INTO purchases VALUES ('${user_id}', '${seat_number}', '${event_id}');`);
+        await pool.query(`INSERT INTO purchases VALUES ('${user_id}', '${seat_number}', '${event_id}', '${amount}', '${currency}');`);
         let query_results = await pool.query(`SELECT * FROM purchases WHERE user_id = '${user_id}';`);
         query_results = (query_results.rows)[0];
 
@@ -106,12 +110,14 @@ app.post('/purchase', async (req, res) => {
                 user_id: query_results.user_id,
                 seat_number: query_results.seat_number,
                 event_id: query_results.event_id,
+                amount: query_results.amount,
+                currency: query_results.currency,
                 purchase_id: query_results.purchase_id,
                 created_at: query_results.created_at
             }));
         }
         catch (err) {
-            console.error('Failed to publish purchase.processed event:', {user_id: query_results.user_id, seat_number: query_results.seat_number, event_id: query_results.event_id, purchase_id: query_results.purchase_id, created_at: query_results.created_at, err});
+            console.error('Failed to publish purchase.processed event:', {user_id: query_results.user_id, seat_number: query_results.seat_number, event_id: query_results.event_id, amount: query_results.amount, currency: query_results.currency, purchase_id: query_results.purchase_id, created_at: query_results.created_at, err});
         }
         
         res
@@ -121,6 +127,8 @@ app.post('/purchase', async (req, res) => {
                 user_id: query_results.user_id,
                 seat_number: query_results.seat_number,
                 event_id: query_results.event_id,
+                amount: query_results.amount,
+                currency: query_results.currency,
                 purchase_id: query_results.purchase_id,
                 created_at: query_results.created_at
             });
@@ -135,6 +143,8 @@ app.post('/purchase', async (req, res) => {
                 user_id: query_results.user_id,
                 seat_number: query_results.seat_number,
                 event_id: query_results.event_id,
+                amount: query_results.amount,
+                currency: query_results.currency,
                 purchase_id: query_results.purchase_id,
                 created_at: query_results.created_at
             });
@@ -160,6 +170,8 @@ app.get('/fetch_purchase', async (req, res) => {
                         user_id,
                         seat_number: query_results.seat_number,
                         event_id: query_results.event_id,
+                        amount: query_results.amount,
+                        currency: query_results.currency,
                         purchase_id,
                         created_at: query_results.created_at
                     });
@@ -184,6 +196,8 @@ app.get('/fetch_purchase', async (req, res) => {
                     user_id: cache_fetch.user_id,
                     seat_number: cache_fetch.seat_number,
                     event_id: cache_fetch.event_id,
+                    amount: query_results.amount,
+                    currency: query_results.currency,
                     purchase_id: cache_fetch.purchase_id,
                     created_at: cache_fetch.created_at
                 });
@@ -222,6 +236,12 @@ app.get('/manual_test', (_req, res) => {
 
             <label for="event_id">event_id:</label>
             <input type="text" id="event_id" name="event_id" value="777" required><br>
+
+            <label for="amount">amount:</label>
+            <input type="text" id="amount" name="amount" value="256" required><br>
+
+            <label for="currency">currency:</label>
+            <input type="text" id="currency" name="currency" value="PHP" required><br>
 
             <button type="submit">Submit</button>
         </form>
