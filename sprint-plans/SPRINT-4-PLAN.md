@@ -48,7 +48,7 @@ Do k6 tests for the scaled replicas.
 
 ## Risks
 
-We need to make sure that the replicated services don't hold internal state, instead of 
+We need to make sure that the replicated services don't hold internal state.
 
 ---
 
