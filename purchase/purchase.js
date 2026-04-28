@@ -8,11 +8,13 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
 const port = Number(process.env.PORT || '9001');
-// const PAYMENT_URL = process.env.PAYMENT_URL || 'http://payment:3000';
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const redis = createClient({ url: process.env.REDIS_URL });
 await redis.connect();
+
+const subscriber = redis.duplicate();
+await subscriber.connect();
 
 // Ensure purchases table exists
 await pool.query(`
@@ -28,6 +30,18 @@ await pool.query(`
 const startTime = Date.now();
 
 app.use(express.json());
+
+// Subscribe to waitlist's seat released channel
+await subscriber.subscribe('seat.purchase', async (data) => {
+    const payload = JSON.parse(data);
+    console.log("Received data from waitlist:", payload);
+    const response = await fetch('http://purchase:9001/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    console.log(`Status of transferring waitlist request to purchase: ${response.status}`);
+});
 
 app.get('/health', async (_req, res) => {
     const checks = {};
@@ -72,10 +86,34 @@ app.post('/purchase', async (req, res) => {
     const user_id = String(payload.user_id);
     const seat_number = String(payload.seat_number);
     const event_id = String(payload.event_id);
+
     try {
         await pool.query(`INSERT INTO purchases VALUES ('${user_id}', '${seat_number}', '${event_id}');`);
         let query_results = await pool.query(`SELECT * FROM purchases WHERE user_id = '${user_id}';`);
         query_results = (query_results.rows)[0];
+
+        // Post to fraud detection queue
+        try {
+            await redis.lPush('fraud_detection_jobs', JSON.stringify(query_results));
+        }
+        catch (err) {
+            console.log("Failed to add purchase to fraud_detection_jobs queue:", err);
+        }
+        
+        // Post to subscribers
+        try {
+            await redis.publish('purchase.processed', JSON.stringify({
+                user_id: query_results.user_id,
+                seat_number: query_results.seat_number,
+                event_id: query_results.event_id,
+                purchase_id: query_results.purchase_id,
+                created_at: query_results.created_at
+            }));
+        }
+        catch (err) {
+            console.error('Failed to publish purchase.processed event:', {user_id: query_results.user_id, seat_number: query_results.seat_number, event_id: query_results.event_id, purchase_id: query_results.purchase_id, created_at: query_results.created_at, err});
+        }
+        
         res
             .status(201)
             .json({
@@ -100,6 +138,59 @@ app.post('/purchase', async (req, res) => {
                 purchase_id: query_results.purchase_id,
                 created_at: query_results.created_at
             });
+    }
+});
+
+app.get('/fetch_purchase', async (req, res) => {
+    const payload = req.body ?? {};
+    const user_id = String(payload.user_id);
+    const purchase_id = String(payload.purchase_id);
+
+    try {
+        let cache_fetch = await redis.get(`${user_id}, ${purchase_id}`);
+        if (cache_fetch == null) {
+            console.log("Not in cache, caching...");
+            try {
+                let query_results = await pool.query(`SELECT * FROM purchases WHERE user_id = '${user_id}' AND purchase_id = '${purchase_id}';`);
+                query_results = (query_results.rows)[0];
+                await redis.set(`${user_id}, ${purchase_id}`, JSON.stringify(query_results));
+                res
+                    .status(201)
+                    .json({
+                        user_id,
+                        seat_number: query_results.seat_number,
+                        event_id: query_results.event_id,
+                        purchase_id,
+                        created_at: query_results.created_at
+                    });
+            }
+            catch (err) {
+                console.log('Failed to fetch entry corresponding to:', {user_id, purchase_id, err});
+                res
+                    .status(200)
+                    .json({
+                        user_id,
+                        purchase_id,
+                        err
+                    });
+            }
+        }
+        else {
+            console.log("fetched from cache");
+            cache_fetch = JSON.parse(cache_fetch)
+            res
+                .status(201)
+                .json({
+                    user_id: cache_fetch.user_id,
+                    seat_number: cache_fetch.seat_number,
+                    event_id: cache_fetch.event_id,
+                    purchase_id: cache_fetch.purchase_id,
+                    created_at: cache_fetch.created_at
+                });
+        }
+    }
+    catch (err) {
+        console.log('Failed to check redis cache with:', {user_id, purchase_id, err});
     }
 });
 
