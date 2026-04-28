@@ -1,0 +1,137 @@
+[
+    {
+        "name": "Catalog",
+        "url": "http://catalog",
+        "port_outer": 3001,
+        "port_inner": 3000,
+        "endpoints": [
+            {
+                "path": "health"
+            },
+            {
+                "path": "events"
+            },
+            {
+                "path": "/events/:id"
+            },
+            {
+                "path": "/events/:id/seats"
+            }
+        ]
+    },
+    {
+        "name": "Refund",
+        "url": "http://refund",
+        "port_outer": 3004,
+        "port_inner": 3000,
+        "endpoints": [
+            {
+                "path": "health"
+            },
+            {
+                "path": "refund",
+                "method": "post",
+                "body": {
+                    "user_id": 1,
+                    "purchase_id": 1
+                }
+            }
+        ]
+    },
+    {
+        "name": "Payment",
+        "url": "http://payment",
+        "port_outer": 3002,
+        "port_inner": 3000,
+        "endpoints": [
+            {
+                "path": "health"
+            },
+            {
+                "path": "payment",
+                "method": "post",
+                "body": {
+                    "amount": 1,
+                    "payment_token": "tok"
+                }
+            },
+            {
+                "path": "refunds",
+                "method": "post",
+                "body": {
+                    "user_id": 1,
+                    "purchase_id": 1,
+                    "amount": 1,
+                    "currency": "USD"
+                }
+            }
+        ]
+    },
+    {
+        "name": "Notification",
+        "url": "http://notification",
+        "port_outer": 3003,
+        "port_inner": 3000,
+        "endpoints": [
+            {
+                "path": "health"
+            },
+            {
+                "path": "notify",
+                "method": "post",
+                "body": {
+                    "userId": 1,
+                    "eventId": 1
+                }
+            }
+        ]
+    },
+    {
+        "name": "Waitlist",
+        "url": "http://waitlist",
+        "port_outer": 3010,
+        "port_inner": 3010,
+        "endpoints": [
+            {
+                "path": "health"
+            }
+        ]
+    },
+    {
+        "name": "Purchase",
+        "url": "http://purchase",
+        "port_outer": 9001,
+        "port_inner": 9001,
+        "endpoints": [
+            {
+                "path": "health"
+            },
+            {
+                "path": "dump_db"
+            },
+            {
+                "path": "manual_test"
+            },
+            {
+                "path": "purchase",
+                "method": "post",
+                "body": {
+                    "user_id": 1,
+                    "seat_number": 1,
+                    "event_id": 1
+                }
+            }
+        ]
+    },
+    {
+        "name": "Analytics",
+        "url": "http://analytics",
+        "port_outer": 3005,
+        "port_inner": 3005,
+        "endpoints": [
+            {
+                "path": "health"
+            }
+        ]
+    }
+]

@@ -10,6 +10,8 @@ const redisClient = new redis(REDIS_URL, {
 });
 redisClient.connect().catch(() => {});
 
+const startTime = Date.now();
+
 async function checkRedis() {
   try {
     await redisClient.ping();
@@ -19,16 +21,34 @@ async function checkRedis() {
   }
 }
 
+function parseJSON(body) {
+  try {
+    return JSON.parse(body);
+  } catch {
+    return null;
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && req.url === "/health") {
+    const redisStart = Date.now();
     const redisStatus = await checkRedis();
+    const redisLatency = Date.now() - redisStart;
     const healthy = redisStatus === "ok";
+
     res.writeHead(healthy ? 200 : 503, { "Content-Type": "application/json" });
     res.end(
       JSON.stringify({
         status: healthy ? "healthy" : "unhealthy",
         service: "payment",
-        checks: { redis: { status: healthy ? "healthy" : "unhealthy" } },
+        timestamp: new Date().toISOString(),
+        uptime_seconds: Math.floor((Date.now() - startTime) / 1000),
+        checks: {
+          redis: {
+            status: healthy ? "healthy" : "unhealthy",
+            latency_ms: redisLatency,
+          },
+        },
       }),
     );
     return;
@@ -40,10 +60,8 @@ const server = http.createServer(async (req, res) => {
       body += chunk;
     });
     req.on("end", () => {
-      let payload;
-      try {
-        payload = JSON.parse(body);
-      } catch {
+      const payload = parseJSON(body);
+      if (!payload) {
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Invalid JSON" }));
         return;
@@ -56,13 +74,47 @@ const server = http.createServer(async (req, res) => {
         );
         return;
       }
-      // Simulated payment: always succeeds unless token starts with "fail"
       const success = !String(payment_token).startsWith("fail");
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
           success,
           transaction_id: success ? `txn_${Date.now()}` : null,
+        }),
+      );
+    });
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/refunds") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+    req.on("end", () => {
+      const payload = parseJSON(body);
+      if (!payload) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid JSON" }));
+        return;
+      }
+      const { user_id, purchase_id, amount, currency } = payload;
+      if (!user_id || !purchase_id || !amount || !currency) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            error: "user_id, purchase_id, amount, and currency are required",
+          }),
+        );
+        return;
+      }
+      const success = !String(user_id).startsWith("fail");
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          success,
+          refund_id: success ? `ref_${Date.now()}` : null,
+          message: success ? "Refund processed successfully" : "Refund failed",
         }),
       );
     });

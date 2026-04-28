@@ -1,0 +1,15 @@
+{
+    "name": "fraud-detection",
+    "version": "1.0.0",
+    "description": "Fraud Detection",
+    "type": "module",
+    "main": "fraud-detection.js",
+    "scripts": {
+        "start": "node fraud-detection.js"
+    },
+    "dependencies": {
+        "express": "^5.2.1",
+        "redis": "^5.8.2",
+        "pg": "^8.13.0"
+    }
+}
