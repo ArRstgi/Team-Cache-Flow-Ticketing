@@ -245,7 +245,9 @@ Take an object of
 {
   user_id: String, 
   seat_number: String, 
-  event_id: String
+  event_id: String,
+  amount: String,
+  currency: String
 }
 ```
 
@@ -256,6 +258,8 @@ and transform it into:
   user_id TEXT UNIQUE NOT NULL,
   seat_number TEXT NOT NULL,
   event_id TEXT NOT NULL,
+  amount: TEXT NOT NULL,
+  currency: TEXT NOT NULL,
   purchase_id UUID DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT NOW()
 }
@@ -295,6 +299,8 @@ GET /
       user_id: String,
       seat_number: String,
       event_id: String
+      amount: String,
+      currency: String
     }
   
   Responses:
@@ -304,6 +310,8 @@ GET /
       user_id,
       seat_number,
       event_id,
+      amount: String,
+      currency: String
       purchase_id,
       created_at
     }
@@ -313,6 +321,8 @@ GET /
       user_id,
       seat_number,
       event_id,
+      amount: String,
+      currency: String
       purchase_id,
       created_at
     }
@@ -321,20 +331,24 @@ GET /
 ###### Example Request
 ```
   {
-    user_id: 1e1
-    seat_number: a2
-    event_id: cool
+    user_id: 1e1,
+    seat_number: a2,
+    event_id: cool,
+    amount: 200,
+    currency: PHP
   }
 ```
 
 ###### Example Response
 ```
   {
-    duplicate: true
-    user_id: 1e1
-    seat_number: a2
-    event_id: cool
-    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
+    duplicate: true,
+    user_id: 1e1,
+    seat_number: a2,
+    event_id: cool,
+    amount: 200,
+    currency: PHP,
+    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1,
     created_at: 2023-03-16 16:35:20.703644+11
   }
 ```
@@ -343,6 +357,58 @@ GET /
 
 ```
   Allows for manual entry of payload to be sent to /purchase.
+```
+
+#### GET /fetch_purchase
+
+```
+  Retrieves an entry via user_id and purchase_id.
+
+  Request:
+    {
+      user_id,
+      purchase_id
+    }
+
+  Responses:
+    201 Successfully retrieved
+      {
+        user_id,
+        seat_number,
+        event_id,
+        amount,
+        currency,
+        purchase_id,
+        created_at
+      }
+    200 Failed to fetch
+      {
+        user_id,
+        purchase_id,
+        err
+      }
+```
+
+###### Example Request
+```
+  {
+    user_id: 1e1,
+    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
+  }
+```
+
+###### Example Response
+```
+  {
+    duplicate: true
+    user_id: 1e1,
+    seat_number: a2,
+    event_id: cool,
+    amount: 200,
+    currency: PHP,
+    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1,
+    created_at: 2023-03-16 16:35:20.703644+11
+  }
 ```
 
 ##### GET /dump_db
@@ -639,7 +705,177 @@ curl -X POST http://refund:3000/refund \
   {"message":"Refund successful and seat released"}
 ```
 
+---
 
+### Payment
+
+#### GET /health
+
+```
+GET /health
+
+  Returns the health status of this service and its Redis dependency.
+
+  Responses:
+    200  Service and all dependencies healthy
+    503  One or more dependencies unreachable
+```
+
+**Example request:**
+
+```bash
+curl http://payment:3000/health
+```
+
+**Example response (200):**
+
+```json
+{
+  "status": "healthy",
+  "service": "payment",
+  "timestamp": "2026-04-21T15:00:00.000Z",
+  "uptime_seconds": 120,
+  "checks": {
+    "redis": {
+      "status": "healthy",
+      "latency_ms": 1
+    }
+  }
+}
+```
+
+**Example response (503):**
+
+```json
+{
+  "status": "unhealthy",
+  "service": "payment",
+  "timestamp": "2026-04-21T15:00:00.000Z",
+  "uptime_seconds": 5,
+  "checks": {
+    "redis": {
+      "status": "unhealthy",
+      "latency_ms": 0
+    }
+  }
+}
+```
+
+---
+
+#### POST /payment
+
+```
+POST /payment
+
+  Processes a payment for a given amount using the provided payment token.
+  A payment_token beginning with "fail" will simulate a failed payment.
+
+  Request body:
+    {
+      "amount":        Number  (required),
+      "payment_token": String  (required)
+    }
+
+  Responses:
+    200  Payment processed (check "success" field for result)
+    400  Missing or invalid fields
+```
+
+**Example request:**
+
+```bash
+curl -X POST http://payment:3000/payment \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 99.99, "payment_token": "tok_abc123"}'
+```
+
+**Example response (200 — success):**
+
+```json
+{
+  "success": true,
+  "transaction_id": "txn_1713711600000"
+}
+```
+
+**Example response (200 — failure):**
+
+```json
+{
+  "success": false,
+  "transaction_id": null
+}
+```
+
+**Example response (400):**
+
+```json
+{
+  "error": "amount and payment_token are required"
+}
+```
+
+---
+
+#### POST /refunds
+
+```
+POST /refunds
+
+  Processes a refund for a prior purchase.
+  A user_id beginning with "fail" will simulate a failed refund.
+
+  Request body:
+    {
+      "user_id":     String  (required),
+      "purchase_id": String  (required),
+      "amount":      Number  (required),
+      "currency":    String  (required)
+    }
+
+  Responses:
+    200  Refund processed (check "success" field for result)
+    400  Missing or invalid fields
+```
+
+**Example request:**
+
+```bash
+curl -X POST http://payment:3000/refunds \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": "user_42", "purchase_id": "purch_99", "amount": 99.99, "currency": "USD"}'
+```
+
+**Example response (200 — success):**
+
+```json
+{
+  "success": true,
+  "refund_id": "ref_1713711600000",
+  "message": "Refund processed successfully"
+}
+```
+
+**Example response (200 — failure):**
+
+```json
+{
+  "success": false,
+  "refund_id": null,
+  "message": "Refund failed"
+}
+```
+
+**Example response (400):**
+
+```json
+{
+  "error": "user_id, purchase_id, amount, and currency are required"
+}
+```
+
+---
 
 ### GET /health
 ```

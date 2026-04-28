@@ -1,10 +1,14 @@
-import redis from 'redis'
+import { createClient } from 'redis'
+import express from 'express'
 
 const redisUrl = process.env.REDIS_URL || 'redis://redis:6379'
-const queueName = process.env.QUEUE_NAME || 'jobs'
+const queueName = process.env.QUEUE_NAME || 'fraud_detection_jobs'
 const ttlSec = Number(process.env.IDEM_TTL_SEC || '86400')
 
-const client = redis.createClient({ url: redisUrl })
+const app = express();
+app.use(express.json())
+const client = createClient({ url: 'redis://redis:6379' })
+await client.connect()
 
 let userHistory = []
 let timeHistory = []
@@ -13,72 +17,127 @@ client.on('error', err => {
   console.error('Fraud Detection Redis error:', err.message)
 })
 
-// let testOrder1 = {
-//     purchaseId: '1',
-//     userId: 'steve',
-//     timestamp: new Date().toISOString()
-// }
+let testOrder1 = {
+    purchase_id: '1',
+    user_id: 'test1',
+    seat_number: '5',
+    event_id: '777',
+    created_at: new Date().toISOString()
+}
+let testOrder2 = {
+    purchase_id: '1',
+    created_at: new Date().toISOString()
+}
+let testOrder3 = {
+    user_id: 123,
+    created_at: new Date().toISOString()
+}
+let testOrder4 = {
+    purchase_id: '1'
+}
 
 async function processJob(order) {
-  let fraud = false
-  if ('isFraud' in order)
-  {
-    //already checked
+  console.log("Fraud detection started")
+  if (!order.purchase_id || !order.user_id || !order.created_at || !order.seat_number){
+    client.lPush(`${queueName}:dlq`, JSON.stringify(order))
+    console.log("Malformed request, pushed to DLQ")
     return
   }
-  await client.expire(order.purchaseId, ttlSec)
-  userHistory.push(order.userId)
-  timeHistory.push(order.timestamp)
-  let temp = userHistory.flatMap((item, i) => item === order.userId ? i : []);
-  let count = temp.length;
-  let temp2 = []
-  if (count > 2)
-    temp.forEach((i) => temp2.push(timeHistory[i]))
-    temp2.forEach((val, i) => temp2[i] = Date.parse(val))
-    //console.log(temp2)
-    for (let i = 0; i < temp2.length - 1; i++) {
-        if (Math.abs(temp2[i] - temp2[i + 1]) < 60000 ) {
+  let fraud = false
+  userHistory.push(order.user_id)
+  timeHistory.push(order.created_at)
+  let userIndices = userHistory.flatMap((item, i) => item === order.user_id ? i : []);
+  let userTimes = []
+  if (userIndices.length > 2)
+    userIndices.forEach((i) => userTimes.push(timeHistory[i]))
+    userTimes.forEach((val, i) => userTimes[i] = Date.parse(val))
+    //console.log(userTimes)
+    for (let i = 0; i < userTimes.length - 1; i++) {
+        if (Math.abs(userTimes[i] - userTimes[i + 1]) < 60000 ) {
             console.log(`Fraud detected`);
             fraud = true;
+            console.log("!!! FRAUD DETECTED !!!")
             break;
         }
-}
-  await client.hSet(order.purchaseId, {
-        isFraud: String(fraud),
-      })
-  // await client.lPush(queueName, JSON.stringify(order))
+    }
+    order.isFraud = fraud
+  console.log("Sending to payment service")
+  const paymentRes = await fetch(`http://payment:3000/payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(order),
+    });
+  console.log("Fraud detection complete")
 
 }
 
 async function loop() {
   while (true) {
-    const result = await client.brPop(queueName, 0)
-    const raw = result?.element
-    if (!raw) continue
+    const result = await client.rPop(queueName, 0)
+    if (!result)
+        continue
+    console.log(result)
     let order
     try {
-      order = JSON.parse(raw)
+      order = JSON.parse(result)
     } catch (err) {
       console.error('Invalid order payload:', err.message)
-      continue
+      client.lPush(`${queueName}:dlq`, result)
     }
     try {
       await processJob(order)
     } catch (err) {
-      const failedAt = new Date().toISOString()
-      await client.hSet(order.purchaseId, {
-        status: 'failed',
-        updatedAt: failedAt,
-        error: err.message,
-      })
-      console.error(`order=${order.purchaseId} status=failed error=${err.message}`)
+      console.error(`Job failed:`, err.message)
+      client.lPush(`${queueName}:dlq`, result)
     }
   }
 }
 
-await client.connect()
+
+app.get('/health', async (req, res) => {
+  const checks = {}
+  let healthy = true
+
+  // Check Redis
+  const redisStart = Date.now()
+  try {
+    console.log("PING")
+    await client.ping()
+    console.log("PONG")
+    checks.redis = { status: 'healthy', latency_ms: Date.now() - redisStart }
+  } catch (err) {
+    checks.redis = { status: 'unhealthy', error: err.message }
+    healthy = false
+  }
+    checks.redis = { status: 'healthy', latency_ms: Date.now() - redisStart }
+
+  try {
+    const depth = await client.lLen(queueName)
+    const dlqDepth = await client.lLen(`${queueName}:dlq`)
+    checks.queue = {
+      status: dlqDepth > 0 ? 'degraded' : 'healthy',
+      depth: depth,
+      dlq_depth: dlqDepth,
+    }
+  } catch (err) {
+    checks.queue = { status: 'unhealthy', error: err.message }
+    healthy = false
+  }
+
+
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? 'healthy' : 'unhealthy',
+    service: 'fraud-detection',
+    created_at: new Date().toISOString(),
+    checks,
+  })
+})
+
+
+app.listen(9002)
 console.log(`Fraud detection worker connected`)
 // await client.lPush(queueName, JSON.stringify(testOrder1))
-// await client.lPush(queueName, JSON.stringify(testOrder1))
-// await client.lPush(queueName, JSON.stringify(testOrder1))
+// await client.lPush(queueName, JSON.stringify(testOrder2))
+// await client.lPush(queueName, JSON.stringify(testOrder3))
+// await client.lPush(queueName, JSON.stringify(testOrder4))
 await loop()
