@@ -260,15 +260,6 @@ services:
       - OUTER_PORT=80
       - INNER_PORT=3010
       - REDIS_URL=redis://redis:6379
-      # points to the other services. used to display if they're running
-      # name, url, port
-      - SERVICE_URLS=
-          Catalog,http://catalog,3001,3000
-          Refund,http://refund,3004,3000
-          Payment,http://payment,3002,3000
-          Notification,http://notification,3003,3000
-          Waitlist,http://waitlist,3010,3010
-          Purchase,http://purchase,9001,9001
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:80/health"]
       interval: 10s 
