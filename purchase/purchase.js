@@ -152,7 +152,7 @@ app.post('/purchase', async (req, res) => {
 });
 
 app.get('/fetch_purchase', async (req, res) => {
-    const payload = req.body ?? {};
+    const payload = req.query ?? {};
     const user_id = String(payload.user_id);
     const purchase_id = String(payload.purchase_id);
 
