@@ -8,7 +8,7 @@
 
 ## Goal
 
-[What reliability improvements and poison pill handling will your team add? Which queues get DLQ handling?]
+Adding dead letter queues, poison pill handling and finishing redis pub/sub
 
 ---
 
@@ -16,29 +16,33 @@
 
 | Team Member | Files / Directories Owned This Sprint |
 | ----------- | ------------------------------------- |
-| [Name]      | `[path]` |
-| [Name]      | `[path]` |
-| [Name]      | `[path]` |
+| Enver Amboy      | `purchases` |
+| Arush Rastogi    | `payment` |
+| Hayun Jung       | `notifications` |
+| Mihir Nagarkatti | `refund` |
+| Casey Hammill    | `k6`, `fraud-detection`|
+| Michael Ye       | `event-catalog`|
+| Mahad Mushtaq    | `analytics-worker`|
+| Edison Zheng     | `waitlist-worker`|
+| Daniel Brown     | `frontend`|
 
 ---
 
 ## Tasks
 
-### [Name]
+### Redis Pub/Sub
 
-- [ ] ...
+### Dead Letter Queues
 
-### [Name]
-
-- [ ] ...
-
-### [Name]
-
-- [ ] ...
+### k6 Testing
 
 ---
 
 ## Risks
+
+### Not handling errors properly
+
+### Not connecting services properly
 
 ---
 
