@@ -89,10 +89,9 @@ services:
 
   catalog:
     build: ./catalog
-    container_name: catalog
+    # container_name removed to allow multiple replicas
     restart: unless-stopped
-    ports:
-      - "3001:3000"
+    # ports removed to prevent host port binding collisions
     networks:
       - team-net
     environment:
@@ -252,9 +251,9 @@ services:
     networks:
       - team-net
     ports:
-      - "80:3010" #80 for default with no port
+      - "8080:3010" # Changed from 80 to 8080 to allow Caddy to use 80
     environment:
-      - OUTER_PORT=80
+      - OUTER_PORT=8080
       - INNER_PORT=3010
       - REDIS_URL=redis://redis:6379
     healthcheck:
@@ -328,6 +327,8 @@ services:
       POSTGRES_DB: mydb
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # Let Postgres run the schema initialization on boot
+      - ./catalog/db:/docker-entrypoint-initdb.d
     networks:
       - team-net
     healthcheck:
@@ -335,6 +336,19 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    ports:
+      - '80:80'
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+    depends_on:
+      catalog:
+        condition: service_healthy 
+    networks:
+      - team-net
     
 
 # ── Named volumes ──────────────────────────────────────────────────────────────
