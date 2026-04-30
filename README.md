@@ -419,31 +419,36 @@ curl http://catalog:3000/events/1/seats
     "id": 1,
     "section": "VIP",
     "row": "A",
-    "seat_number": 1
+    "seat_number": 1,
+    "is_taken": false
   },
   {
     "id": 2,
     "section": "VIP",
     "row": "A",
-    "seat_number": 2
+    "seat_number": 2,
+    "is_taken": false
   },
   {
     "id": 3,
     "section": "VIP",
     "row": "A",
-    "seat_number": 3
+    "seat_number": 3,
+    "is_taken": false
   },
   {
     "id": 4,
     "section": "101",
     "row": "G",
-    "seat_number": 15
+    "seat_number": 15,
+    "is_taken": false
   },
   {
     "id": 5,
     "section": "101",
     "row": "G",
-    "seat_number": 16
+    "seat_number": 16,
+    "is_taken": false
   }
 ]
 ```

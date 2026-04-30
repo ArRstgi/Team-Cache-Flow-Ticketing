@@ -122,7 +122,12 @@ app.get('/events/:id/seats', async (req, res) => {
     }
 
     console.log(`[Replica ${replicaId}] Cache miss for /events/${id}/seats. Querying database...`);
-    const result = await pool.query('SELECT id, section, row, seat_number FROM seats WHERE event_id = $1', [id]);
+    
+    // UPDATED: Added is_taken to the SELECT query
+    const result = await pool.query(
+      'SELECT id, section, row, seat_number, is_taken FROM seats WHERE event_id = $1', 
+      [id]
+    );
     
     await redisClient.setEx(cacheKey, 60, JSON.stringify(result.rows));
     
