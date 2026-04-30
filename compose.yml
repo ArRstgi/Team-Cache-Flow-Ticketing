@@ -341,6 +341,10 @@ services:
     depends_on:
       catalog:
         condition: service_healthy 
+      purchase:
+        condition: service_healthy
+      payment:
+        condition: service_healthy
     networks:
       - team-net
     
