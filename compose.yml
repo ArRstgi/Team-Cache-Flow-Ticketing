@@ -136,13 +136,10 @@ services:
 
   payment:
     build: ./payment
-    container_name: payment
     restart: unless-stopped
     environment:
       - REDIS_URL=redis://redis:6379
       - PORT=3000
-    ports:
-      - "3002:3000"
     depends_on:
       redis:
         condition: service_healthy
@@ -254,7 +251,7 @@ services:
       - INNER_PORT=3010
       - REDIS_URL=redis://redis:6379
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:80/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3010/health"]
       interval: 10s 
       timeout: 5s 
       retries: 3 
@@ -344,6 +341,10 @@ services:
     depends_on:
       catalog:
         condition: service_healthy 
+      purchase:
+        condition: service_healthy
+      payment:
+        condition: service_healthy
     networks:
       - team-net
     

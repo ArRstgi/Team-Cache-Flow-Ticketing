@@ -2,6 +2,12 @@
     reverse_proxy catalog:3000 {
         lb_policy round_robin
     }
+    reverse_proxy purchase:9001 {
+        lb_policy round_robin
+    }
+    reverse_proxy payment:3000 {
+        lb_policy round_robin
+    }
 }
 
 :9001 {
