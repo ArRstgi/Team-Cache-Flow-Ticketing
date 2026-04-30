@@ -3,3 +3,9 @@
         lb_policy round_robin
     }
 }
+
+:9001 {
+    reverse_proxy purchase:9001 {
+        lb_policy round_robin
+    }
+}
