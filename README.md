@@ -57,17 +57,17 @@ k6 run --env SCALE=replicated k6/sprint-4-replica.js
 ```
 ### Base URLs (development)
 ```
-catalog          http://localhost:3001
-payment          http://localhost:3002
-notification     http://localhost:3003
-waitlist         http://localhost:3010
-purchase         http://localhost:9001
-fraud-detection  http://localhost:9002
-analytics        http://localhost:3005
-refund           (no host port — internal only)
-refund           http://localhost:3004
-holmes           (no port — access via exec)
-frontend         http://localhost:80
+caddy         http://localhost:80
+catalog       (accessed internally or via Caddy)
+payment       http://localhost:3002
+notification  http://localhost:3003
+waitlist      http://localhost:3010
+purchase      http://localhost:9001
+analytics     http://localhost:3005
+refund        (no host port — internal only)
+refund        http://localhost:3004
+holmes        (no port — access via exec)
+frontend      http://localhost:8080
 ```
 > From inside holmes, services are reachable by their Docker service name:
 > `curl http://catalog:3000/health`
@@ -212,14 +212,11 @@ curl http://catalog:3000/health
 
 ```json
 {
+  "service_instance": "d21a7355ef08",
   "status": "healthy",
   "checks": {
-    "database": {
-      "status": "healthy"
-    },
-    "redis": {
-      "status": "healthy"
-    }
+    "database": { "status": "healthy" },
+    "redis": { "status": "healthy" }
   }
 }
 ```
@@ -237,6 +234,235 @@ curl http://catalog:3000/health
       "status": "unreachable"
     }
   }
+}
+```
+
+#### GET /events
+
+```
+GET /events
+
+  Returns a list of all events in the catalog.
+
+  Responses:
+    200  Successful response containing an array of events
+    500  Internal Server Error
+```
+
+**Example request:**
+
+```bash
+curl http://catalog:3000/events
+```
+
+**Example response (200):**
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Laufey Tour",
+    "venue": "Madison Square Garden",
+    "date": "2025-05-05T15:55:55.000Z",
+    "total_seats": 55000,
+    "available_seats": 55000
+  },
+  {
+    "id": 2,
+    "name": "Boston Celtics vs. Thunder",
+    "venue": "TD Garden",
+    "date": "2023-04-15T12:35:00.000Z",
+    "total_seats": 50000,
+    "available_seats": 30000
+  }
+]
+```
+
+**Example response (500):**
+
+```json
+{
+  "error": "Internal Server Error"
+}
+```
+
+---
+
+#### POST /events
+
+```text
+POST /events
+
+  Creates a new event and its associated seats in the database using a transaction. Invalidates the events cache upon success.
+
+  Request Body:
+    {
+      "name": String,
+      "venue": String,
+      "date": String (Timestamp),
+      "total_seats": Number,
+      "seats": Array of seat objects { section, row, seat_number }
+    }
+
+  Responses:
+    201  Event and seats created successfully
+    400  Missing or invalid parameters
+    500  Internal Server Error
+```
+
+**Example request:**
+
+```json
+curl -X POST http://caddy:80/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Kendrick Lamar Tour",
+    "venue": "Gillette Stadium",
+    "date": "2026-08-15 19:00:00",
+    "total_seats": 4,
+    "seats": [
+      {"section": "GA", "row": "1", "seat_number": 1},
+      {"section": "GA", "row": "1", "seat_number": 2},
+      {"section": "VIP", "row": "A", "seat_number": 1},
+      {"section": "VIP", "row": "A", "seat_number": 2}
+    ]
+  }'
+```
+
+
+**Example response (201):**
+
+```json
+{
+  "message": "Event and seats created successfully",
+  "event": {
+    "id": 3,
+    "name": "Kendrick Lamar Tour",
+    "venue": "Gillette Stadium",
+    "date": "2026-08-15T19:00:00.000Z",
+    "total_seats": 4,
+    "available_seats": 4
+  }
+}
+```
+
+---
+
+#### GET /events/:id
+
+```
+GET /events/:id
+
+  Returns details for a specific event by its ID.
+
+  Responses:
+    200  Successful response containing the event details
+    404  Event not found
+    500  Internal Server Error
+```
+
+**Example request:**
+
+```bash
+curl http://catalog:3000/events/1
+```
+
+**Example response (200):**
+
+```json
+{
+  "id": 1,
+  "name": "Laufey Tour",
+  "venue": "Madison Square Garden",
+  "date": "2025-05-05T15:55:55.000Z",
+  "total_seats": 55000,
+  "available_seats": 55000
+}
+```
+
+**Example response (404):**
+
+```json
+{
+  "error": "Event not found"
+}
+```
+
+**Example response (500):**
+
+```json
+{
+  "error": "Internal Server Error"
+}
+```
+
+---
+
+#### GET /events/:id/seats
+
+```
+GET /events/:id/seats
+
+  Returns the seat map for a specific event by its ID.
+
+  Responses:
+    200  Successful response containing an array of seats
+    500  Internal Server Error
+```
+
+**Example request:**
+
+```bash
+curl http://catalog:3000/events/1/seats
+```
+
+**Example response (200):**
+
+```json
+[
+  {
+    "id": 1,
+    "section": "VIP",
+    "row": "A",
+    "seat_number": 1,
+    "is_taken": false
+  },
+  {
+    "id": 2,
+    "section": "VIP",
+    "row": "A",
+    "seat_number": 2,
+    "is_taken": false
+  },
+  {
+    "id": 3,
+    "section": "VIP",
+    "row": "A",
+    "seat_number": 3,
+    "is_taken": false
+  },
+  {
+    "id": 4,
+    "section": "101",
+    "row": "G",
+    "seat_number": 15,
+    "is_taken": false
+  },
+  {
+    "id": 5,
+    "section": "101",
+    "row": "G",
+    "seat_number": 16,
+    "is_taken": false
+  }
+]
+```
+
+**Example response (500):**
+
+```json
+{
+  "error": "Internal Server Error"
 }
 ```
 
@@ -450,172 +676,6 @@ GET /
     ]
   }
 ```
----
-
-#### GET /events
-
-```
-GET /events
-
-  Returns a list of all events in the catalog.
-
-  Responses:
-    200  Successful response containing an array of events
-    500  Internal Server Error
-```
-
-**Example request:**
-
-```bash
-curl http://catalog:3000/events
-```
-
-**Example response (200):**
-
-```json
-[
-  {
-    "id": 1,
-    "name": "Laufey Tour",
-    "venue": "Madison Square Garden",
-    "date": "2025-05-05T15:55:55.000Z",
-    "total_seats": 55000,
-    "available_seats": 55000
-  },
-  {
-    "id": 2,
-    "name": "Boston Celtics vs. Thunder",
-    "venue": "TD Garden",
-    "date": "2023-04-15T12:35:00.000Z",
-    "total_seats": 50000,
-    "available_seats": 30000
-  }
-]
-```
-
-**Example response (500):**
-
-```json
-{
-  "error": "Internal Server Error"
-}
-```
-
----
-
-#### GET /events/:id
-
-```
-GET /events/:id
-
-  Returns details for a specific event by its ID.
-
-  Responses:
-    200  Successful response containing the event details
-    404  Event not found
-    500  Internal Server Error
-```
-
-**Example request:**
-
-```bash
-curl http://catalog:3000/events/1
-```
-
-**Example response (200):**
-
-```json
-{
-  "id": 1,
-  "name": "Laufey Tour",
-  "venue": "Madison Square Garden",
-  "date": "2025-05-05T15:55:55.000Z",
-  "total_seats": 55000,
-  "available_seats": 55000
-}
-```
-
-**Example response (404):**
-
-```json
-{
-  "error": "Event not found"
-}
-```
-
-**Example response (500):**
-
-```json
-{
-  "error": "Internal Server Error"
-}
-```
-
----
-
-#### GET /events/:id/seats
-
-```
-GET /events/:id/seats
-
-  Returns the seat map for a specific event by its ID.
-
-  Responses:
-    200  Successful response containing an array of seats
-    500  Internal Server Error
-```
-
-**Example request:**
-
-```bash
-curl http://catalog:3000/events/1/seats
-```
-
-**Example response (200):**
-
-```json
-[
-  {
-    "id": 1,
-    "section": "VIP",
-    "row": "A",
-    "seat_number": 1
-  },
-  {
-    "id": 2,
-    "section": "VIP",
-    "row": "A",
-    "seat_number": 2
-  },
-  {
-    "id": 3,
-    "section": "VIP",
-    "row": "A",
-    "seat_number": 3
-  },
-  {
-    "id": 4,
-    "section": "101",
-    "row": "G",
-    "seat_number": 15
-  },
-  {
-    "id": 5,
-    "section": "101",
-    "row": "G",
-    "seat_number": 16
-  }
-]
-```
-
-**Example response (500):**
-
-```json
-{
-  "error": "Internal Server Error"
-}
-```
-
 ---
 
 
