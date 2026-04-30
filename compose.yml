@@ -144,8 +144,6 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379
       - PORT=3000
-    ports:
-      - "3002:3000"
     depends_on:
       redis:
         condition: service_healthy
