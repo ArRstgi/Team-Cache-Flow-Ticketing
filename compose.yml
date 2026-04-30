@@ -113,10 +113,7 @@ services:
     
   purchase:
     build: ./purchase
-    container_name: purchase
     restart: unless-stopped
-    ports:
-      - "9001:9001"
     networks:
       - team-net  
     environment:
@@ -139,7 +136,6 @@ services:
 
   payment:
     build: ./payment
-    container_name: payment
     restart: unless-stopped
     environment:
       - REDIS_URL=redis://redis:6379
