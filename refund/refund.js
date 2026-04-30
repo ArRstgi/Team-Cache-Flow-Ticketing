@@ -61,29 +61,22 @@ app.post('/refund', async (req, res) => {
   // --- 1. Confirm purchase exists via Purchase Service ---
   let purchase;
   try {
-    // const purchaseRes = await fetch(`${PURCHASE_SERVICE_URL}/purchases/${purchase_id}?user_id=${user_id}`);
+    const queryString = new URLSearchParams({ purchase_id, user_id }).toString();
+    const url = `${PURCHASE_SERVICE_URL}/fetch_purchase?${queryString}`;
+    console.log(url);
+    const purchaseRes = await fetch(url);
 
-    // if (purchaseRes.status === 404) {
-    //   return res.status(404).json({ error: 'Purchase not found' });
-    // }
-    // if (!purchaseRes.ok) {
-    //   return res.status(502).json({ error: 'Purchase service error' });
-    // }
+    if (purchaseRes.status === 404) {
+      return res.status(404).json({ error: 'Purchase endpoint not found' });
+    }
+    if (!purchaseRes.ok) {
+      return res.status(502).json({ error: 'Purchase service error' });
+    }
 
-    // purchase = await purchaseRes.json();
-    console.log(`
-      This is where the refund service would call the purchase service
-      to confirm the purchase was made in the past. Currently this is not implemented.
-    `)
-
-    purchase = {
-      purchase_id: "test_purchase_id_1", 
-      user_id: "test_user_id_1",
-      event_id: "test_event_id_1",
-      seat_number: 10,
-      amountPaid: 100,
-      currency: "USD",
-      purchasedAt: Date.now(),
+    purchase = await purchaseRes.json();
+    console.log("Purchase", purchase)
+    if ("err" in purchase) {
+      return res.status(400).json({ error: `Purchase has not been made, cannot be refunded. ${purchase.err}` });
     }
   } catch (err) {
     console.error('Failed to reach purchase service:', err);
@@ -114,7 +107,7 @@ app.post('/refund', async (req, res) => {
       body: JSON.stringify({
         user_id,
         purchase_id,
-        amount: purchase.amountPaid,
+        amount: purchase.amount,
         currency: purchase.currency,
       }),
     });

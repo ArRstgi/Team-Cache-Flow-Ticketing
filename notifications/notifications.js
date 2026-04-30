@@ -2,10 +2,70 @@ import express from 'express'
 import { createClient } from 'redis'
 
 const app = express();
+app.use(express.json());
 const redis = createClient({ url: process.env.REDIS_URL });
 await redis.connect();
 
 const startTime = Date.now();
+
+// Notification Worker Service
+const QUEUE_NAME = process.env.QUEUE_NAME ?? 'notifications:queue';
+const DLQ_NAME   = `${QUEUE_NAME}:dlq`;
+let jobsProcessed = 0;
+let lastJobAt     = null;
+
+async function runWorker() {
+    console.log(`[Notification Worker] Listening on ${QUEUE_NAME}`);
+    while (true) {
+        try {
+            const result = await redis.brPop(QUEUE_NAME, 5);
+            if (!result) continue;
+ 
+            let message;
+            try {
+                message = JSON.parse(result.element);
+            } catch (err) {
+                console.log(JSON.stringify({
+                    event: 'poison_pill',
+                    reason: 'invalid JSON',
+                    raw: result.element,
+                    dlq: DLQ_NAME,
+                    timestamp: new Date().toISOString(),
+                }));
+                await redis.rPush(DLQ_NAME, result.element);
+                continue;
+            }
+ 
+            if (!message.userId || !message.eventId) {
+                console.log(JSON.stringify({
+                    event: 'poison_pill',
+                    reason: 'missing userId or eventId',
+                    message,
+                    dlq: DLQ_NAME,
+                    timestamp: new Date().toISOString(),
+                }));
+                await redis.rPush(DLQ_NAME, result.element);
+                continue;
+            }
+ 
+            console.log(JSON.stringify({
+                event: 'job_processed',
+                userId: message.userId,
+                eventId: message.eventId,
+                timestamp: new Date().toISOString(),
+            }));
+            console.log(`Sending confirmation to user ${message.userId} for event ${message.eventId}`);
+ 
+            jobsProcessed++;
+            lastJobAt = new Date().toISOString();
+ 
+        } catch (err) {
+            console.error('[Notification Worker] Unexpected error:', err.message);
+        }
+    }
+}
+ 
+runWorker();
 
 app.get('/health', async (_req, res) => {
     const checks = {};
@@ -34,18 +94,32 @@ app.get('/health', async (_req, res) => {
         healthy = false;
     }
 
+    // check queue and dlq depth
+    try {
+        const depth    = await redis.lLen(QUEUE_NAME);
+        const dlqDepth = await redis.lLen(DLQ_NAME);
+        checks.queue = {
+            status:    dlqDepth > 0 ? 'degraded' : 'healthy',
+            depth,
+            dlq_depth: dlqDepth,
+        };
+    } catch (err) {
+        checks.queue = { status: 'unhealthy', error: err.message };
+        healthy = false;
+    }
+
     const body = {
         status: healthy ? 'healthy' : 'unhealthy',
         service: process.env.SERVICE_NAME ?? 'unknown',
         timestamp: new Date().toISOString(),
         uptime_seconds: Math.floor((Date.now() - startTime) / 1000),
+        jobs_processed: jobsProcessed,
+        last_job_at: lastJobAt,
         checks,
     };
 
     res.status(healthy ? 200 : 503).json(body);
 });
-
-app.use(express.json());
 
 app.post('/notify', (req, res) => {
     const { userId, eventId } = req.body;

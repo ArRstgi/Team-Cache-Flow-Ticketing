@@ -50,10 +50,15 @@ docker compose exec holmes bash
 k6 run k6/sprint-1.js
 k6 run k6/sprint-2-cache.js
 k6 run k6/sprint-2-async.js
+k6 run k6/sprint-3-poison.js
+k6 run --env SCALE=single k6/sprint-4-scale.js
+k6 run --env SCALE=replicated k6/sprint-4-scale.js
+k6 run --env SCALE=replicated k6/sprint-4-replica.js
 ```
 ### Base URLs (development)
 ```
-catalog       http://localhost:3001
+caddy         http://localhost:80
+catalog       (accessed internally or via Caddy)
 payment       http://localhost:3002
 notification  http://localhost:3003
 waitlist      http://localhost:3010
@@ -62,12 +67,13 @@ analytics     http://localhost:3005
 refund        (no host port — internal only)
 refund        http://localhost:3004
 holmes        (no port — access via exec)
-frontend      http://localhost:80
+frontend      http://localhost:8080
 ```
 > From inside holmes, services are reachable by their Docker service name:
 > `curl http://catalog:3000/health`
 > `curl http://payment:3000/health`
 > `curl http://purchase:9001/health`
+> `curl http://fraud-detection:9002/health`
 > `curl http://refund:3001/health`
 > `curl http://analytics:3005/health`
 > curl http://catalog:3000/health
@@ -206,14 +212,11 @@ curl http://catalog:3000/health
 
 ```json
 {
+  "service_instance": "d21a7355ef08",
   "status": "healthy",
   "checks": {
-    "database": {
-      "status": "healthy"
-    },
-    "redis": {
-      "status": "healthy"
-    }
+    "database": { "status": "healthy" },
+    "redis": { "status": "healthy" }
   }
 }
 ```
@@ -233,152 +236,6 @@ curl http://catalog:3000/health
   }
 }
 ```
-
----
-### Purchase
-
-#### Primary Function:
-
-Take an object of 
-
-```
-{
-  user_id: String, 
-  seat_number: String, 
-  event_id: String
-}
-```
-
-and transform it into:
-
-```
-{
-  user_id TEXT UNIQUE NOT NULL,
-  seat_number TEXT NOT NULL,
-  event_id TEXT NOT NULL,
-  purchase_id UUID DEFAULT gen_random_uuid(),
-  created_at TIMESTAMPTZ DEFAULT NOW()
-}
-```
-
-in which ```purchase_id``` and ```created_at``` are default. This is added to the ```purchases``` database. Returns JSON of added entry along with a duplicate field, indicating if an entry of that user_id already exists on the database. Handles idempotency via ```user_id```, in which on detecting an existing entry with the same ```user_id``` returns that entry along with code ```200```, else ```201```.
-
-#### Endpoints:
-
-##### GET /health
-
-```
-GET /health
-
-  Returns the health status of this service and its dependencies (redis and postgresql).
-
-  Responses:
-    200  Service and all dependencies healthy
-    503  One or more dependencies unreachable
-```
-
-##### GET /
-
-```
-GET /
-
-  Returns HTML Purchase is Online!
-```
-
-##### POST /purchase
-
-```
-  Post a payload to be processed and placed on purchases queue.
-
-  Request:
-    {
-      user_id: String,
-      seat_number: String,
-      event_id: String
-    }
-  
-  Responses:
-    201 New entry, added to database.
-    {
-      duplicate: false,
-      user_id,
-      seat_number,
-      event_id,
-      purchase_id,
-      created_at
-    }
-    200 Duplicate entry (determined by user_id), not added.
-    {
-      duplicate: true,
-      user_id,
-      seat_number,
-      event_id,
-      purchase_id,
-      created_at
-    }
-```
-
-###### Example Request
-```
-  {
-    user_id: 1e1
-    seat_number: a2
-    event_id: cool
-  }
-```
-
-###### Example Response
-```
-  {
-    duplicate: true
-    user_id: 1e1
-    seat_number: a2
-    event_id: cool
-    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
-    created_at: 2023-03-16 16:35:20.703644+11
-  }
-```
-
-##### GET /manual_test
-
-```
-  Allows for manual entry of payload to be sent to /purchase.
-```
-
-##### GET /dump_db
-
-```
-  Dumps purchases database.
-
-  Responses:
-    200
-    {
-      rows: all database rows
-    }
-```
-
-###### Example Response
-```
-  {
-    rows: [
-      {
-        user_id: 1e1
-        seat_number: a2
-        event_id: cool
-        purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
-        created_at: 2023-03-16 16:35:20.703644+11
-      },
-      {
-        user_id: d21
-        seat_number: a3
-        event_id: swag
-        purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
-        created_at: 2023-03-16 16:35:20.703644+11
-      },
-    ]
-  }
-```
----
 
 #### GET /events
 
@@ -426,6 +283,66 @@ curl http://catalog:3000/events
 ```json
 {
   "error": "Internal Server Error"
+}
+```
+
+---
+
+#### POST /events
+
+```text
+POST /events
+
+  Creates a new event and its associated seats in the database using a transaction. Invalidates the events cache upon success.
+
+  Request Body:
+    {
+      "name": String,
+      "venue": String,
+      "date": String (Timestamp),
+      "total_seats": Number,
+      "seats": Array of seat objects { section, row, seat_number }
+    }
+
+  Responses:
+    201  Event and seats created successfully
+    400  Missing or invalid parameters
+    500  Internal Server Error
+```
+
+**Example request:**
+
+```json
+curl -X POST http://caddy:80/events \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Kendrick Lamar Tour",
+    "venue": "Gillette Stadium",
+    "date": "2026-08-15 19:00:00",
+    "total_seats": 4,
+    "seats": [
+      {"section": "GA", "row": "1", "seat_number": 1},
+      {"section": "GA", "row": "1", "seat_number": 2},
+      {"section": "VIP", "row": "A", "seat_number": 1},
+      {"section": "VIP", "row": "A", "seat_number": 2}
+    ]
+  }'
+```
+
+
+**Example response (201):**
+
+```json
+{
+  "message": "Event and seats created successfully",
+  "event": {
+    "id": 3,
+    "name": "Kendrick Lamar Tour",
+    "venue": "Gillette Stadium",
+    "date": "2026-08-15T19:00:00.000Z",
+    "total_seats": 4,
+    "available_seats": 4
+  }
 }
 ```
 
@@ -507,31 +424,36 @@ curl http://catalog:3000/events/1/seats
     "id": 1,
     "section": "VIP",
     "row": "A",
-    "seat_number": 1
+    "seat_number": 1,
+    "is_taken": false
   },
   {
     "id": 2,
     "section": "VIP",
     "row": "A",
-    "seat_number": 2
+    "seat_number": 2,
+    "is_taken": false
   },
   {
     "id": 3,
     "section": "VIP",
     "row": "A",
-    "seat_number": 3
+    "seat_number": 3,
+    "is_taken": false
   },
   {
     "id": 4,
     "section": "101",
     "row": "G",
-    "seat_number": 15
+    "seat_number": 15,
+    "is_taken": false
   },
   {
     "id": 5,
     "section": "101",
     "row": "G",
-    "seat_number": 16
+    "seat_number": 16,
+    "is_taken": false
   }
 ]
 ```
@@ -544,6 +466,216 @@ curl http://catalog:3000/events/1/seats
 }
 ```
 
+---
+### Purchase
+
+#### Primary Function:
+
+Take an object of 
+
+```
+{
+  user_id: String, 
+  seat_number: String, 
+  event_id: String,
+  amount: String,
+  currency: String
+}
+```
+
+and transform it into:
+
+```
+{
+  user_id TEXT UNIQUE NOT NULL,
+  seat_number TEXT NOT NULL,
+  event_id TEXT NOT NULL,
+  amount: TEXT NOT NULL,
+  currency: TEXT NOT NULL,
+  purchase_id UUID DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+}
+```
+
+in which ```purchase_id``` and ```created_at``` are default. This is added to the ```purchases``` database. Returns JSON of added entry along with a duplicate field, indicating if an entry of that user_id already exists on the database. Handles idempotency via ```user_id```, in which on detecting an existing entry with the same ```user_id``` returns that entry along with code ```200```, else ```201```.
+
+#### Endpoints:
+
+##### GET /health
+
+```
+GET /health
+
+  Returns the health status of this service and its dependencies (redis and postgresql).
+
+  Responses:
+    200  Service and all dependencies healthy
+    503  One or more dependencies unreachable
+```
+
+##### GET /
+
+```
+GET /
+
+  Returns HTML Purchase is Online!
+```
+
+##### POST /purchase
+
+```
+  Post a payload to be processed and placed on purchases queue.
+
+  Request:
+    {
+      user_id: String,
+      seat_number: String,
+      event_id: String
+      amount: String,
+      currency: String
+    }
+  
+  Responses:
+    201 New entry, added to database.
+    {
+      duplicate: false,
+      user_id,
+      seat_number,
+      event_id,
+      amount: String,
+      currency: String
+      purchase_id,
+      created_at
+    }
+    200 Duplicate entry (determined by user_id), not added.
+    {
+      duplicate: true,
+      user_id,
+      seat_number,
+      event_id,
+      amount: String,
+      currency: String
+      purchase_id,
+      created_at
+    }
+```
+
+###### Example Request
+```
+  {
+    user_id: 1e1,
+    seat_number: a2,
+    event_id: cool,
+    amount: 200,
+    currency: PHP
+  }
+```
+
+###### Example Response
+```
+  {
+    duplicate: true,
+    user_id: 1e1,
+    seat_number: a2,
+    event_id: cool,
+    amount: 200,
+    currency: PHP,
+    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1,
+    created_at: 2023-03-16 16:35:20.703644+11
+  }
+```
+
+##### GET /manual_test
+
+```
+  Allows for manual entry of payload to be sent to /purchase.
+```
+
+#### GET /fetch_purchase
+
+```
+  Retrieves an entry via user_id and purchase_id.
+
+  Request:
+    {
+      user_id,
+      purchase_id
+    }
+
+  Responses:
+    201 Successfully retrieved
+      {
+        user_id,
+        seat_number,
+        event_id,
+        amount,
+        currency,
+        purchase_id,
+        created_at
+      }
+    200 Failed to fetch
+      {
+        user_id,
+        purchase_id,
+        err
+      }
+```
+
+###### Example Request
+```
+  {
+    user_id: 1e1,
+    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
+  }
+```
+
+###### Example Response
+```
+  {
+    duplicate: true
+    user_id: 1e1,
+    seat_number: a2,
+    event_id: cool,
+    amount: 200,
+    currency: PHP,
+    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1,
+    created_at: 2023-03-16 16:35:20.703644+11
+  }
+```
+
+##### GET /dump_db
+
+```
+  Dumps purchases database.
+
+  Responses:
+    200
+    {
+      rows: all database rows
+    }
+```
+
+###### Example Response
+```
+  {
+    rows: [
+      {
+        user_id: 1e1
+        seat_number: a2
+        event_id: cool
+        purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
+        created_at: 2023-03-16 16:35:20.703644+11
+      },
+      {
+        user_id: d21
+        seat_number: a3
+        event_id: swag
+        purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
+        created_at: 2023-03-16 16:35:20.703644+11
+      },
+    ]
+  }
+```
 ---
 
 
@@ -903,6 +1035,75 @@ Example response (200):
   "dlq_depth": 0,
   "jobs_processed": 1,
   "last_job_at": "2026-04-21T10:20:48.094Z"
+}
+```
+
+---
+
+## Fraud Detection
+
+#### GET /health
+
+```
+GET /health
+
+  Returns the health status of this worker, the status of the Purchase redis queue and its depth, and DLQ depth
+
+  Responses:
+    200  Worker and all dependencies healthy
+    503  One or more dependencies unreachable
+```
+
+**Example request:**
+
+```bash
+curl http://fraud-detection:9002/health
+```
+
+**Example response (200):**
+
+```json
+{
+  "status": "healthy",
+  "service": "fraud-detection",
+  "created_at": "2026-04-21T14:53:17.616Z",
+  "checks":
+    {
+      "redis":
+        {
+          "status": "healthy",
+          "latency_ms": 1
+        },
+      "queue":
+        {
+          "status": "healthy",
+          "depth": 4,
+          "dlq_depth": 0
+        },
+      }
+}
+```
+
+**Example response (503):**
+
+```json
+{
+  "status": "unhealthy",
+  "service": "fraud-detection",
+  "created_at": "2026-04-21T14:53:17.616Z",
+  "checks":
+    {
+      "redis":
+        {
+          "status": "unhealthy",
+          "error": "connection refused"
+        },
+      "queue":
+        {
+          "status": "unhealthy",
+          "error": "connection refused"
+        },
+      }
 }
 ```
 
