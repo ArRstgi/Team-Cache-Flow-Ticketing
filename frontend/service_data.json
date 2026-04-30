@@ -16,6 +16,28 @@
             },
             {
                 "path": "/events/:id/seats"
+            },
+            {
+                "path": "/events",
+                "method": "post",
+                "body": {
+                    "name": "event",
+                    "venue": "venue",
+                    "date": "date",
+                    "total_seats": 2,
+                    "seats": [
+                        {
+                            "section": "A",
+                            "row": 1,
+                            "seat_number": 1
+                        },
+                        {
+                            "section": "A",
+                            "row": 1,
+                            "seat_number": 2
+                        }
+                    ]
+                }
             }
         ]
     },
@@ -113,12 +135,21 @@
                 "path": "manual_test"
             },
             {
+                "path": "fetch_purchase",
+                "query": {
+                    "user_id": "1",
+                    "purchase_id": "1"
+                }
+            },
+            {
                 "path": "purchase",
                 "method": "post",
                 "body": {
                     "user_id": 1,
                     "seat_number": 1,
-                    "event_id": 1
+                    "event_id": 1,
+                    "amount": 1,
+                    "currency": "USD"
                 }
             }
         ]

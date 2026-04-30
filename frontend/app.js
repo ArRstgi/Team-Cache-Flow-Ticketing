@@ -52,11 +52,11 @@ app.post("/fetch_backend",async (req,res)=>{
     let response = await fetch(data.url,data.options);
     
     try {
-        response = await response.json();
+        response = await response.text();
     }
     catch(_err){}
 
-    res.json(response);
+    res.type("txt").send(response);
 });
 
 
