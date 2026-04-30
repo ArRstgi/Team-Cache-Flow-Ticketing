@@ -196,8 +196,8 @@ app.get('/fetch_purchase', async (req, res) => {
                     user_id: cache_fetch.user_id,
                     seat_number: cache_fetch.seat_number,
                     event_id: cache_fetch.event_id,
-                    amount: query_results.amount,
-                    currency: query_results.currency,
+                    amount: cache_fetch.amount,
+                    currency: cache_fetch.currency,
                     purchase_id: cache_fetch.purchase_id,
                     created_at: cache_fetch.created_at
                 });
@@ -205,6 +205,7 @@ app.get('/fetch_purchase', async (req, res) => {
     }
     catch (err) {
         console.log('Failed to check redis cache with:', {user_id, purchase_id, err});
+        res.status(500).json({ message: "Failed to check redis cache." })
     }
 });
 
