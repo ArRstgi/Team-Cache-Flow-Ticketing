@@ -42,3 +42,8 @@ VALUES
     (2, 'Courtside', '1', 2),
     (2, 'Loge', '12', 5)
 ON CONFLICT DO NOTHING;
+
+
+-- Resync the auto-incrementing sequences after manual inserts
+SELECT setval('events_id_seq', (SELECT MAX(id) FROM events));
+SELECT setval('seats_id_seq', (SELECT MAX(id) FROM seats));
