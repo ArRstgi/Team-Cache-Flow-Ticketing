@@ -50,6 +50,10 @@ docker compose exec holmes bash
 k6 run k6/sprint-1.js
 k6 run k6/sprint-2-cache.js
 k6 run k6/sprint-2-async.js
+k6 run k6/sprint-3-poison.js
+k6 run --env SCALE=single k6/sprint-4-scale.js
+k6 run --env SCALE=replicated k6/sprint-4-scale.js
+k6 run --env SCALE=replicated k6/sprint-4-replica.js
 ```
 ### Base URLs (development)
 ```
@@ -69,6 +73,7 @@ frontend      http://localhost:8080
 > `curl http://catalog:3000/health`
 > `curl http://payment:3000/health`
 > `curl http://purchase:9001/health`
+> `curl http://fraud-detection:9002/health`
 > `curl http://refund:3001/health`
 > `curl http://analytics:3005/health`
 > curl http://catalog:3000/health
@@ -1030,6 +1035,75 @@ Example response (200):
   "dlq_depth": 0,
   "jobs_processed": 1,
   "last_job_at": "2026-04-21T10:20:48.094Z"
+}
+```
+
+---
+
+## Fraud Detection
+
+#### GET /health
+
+```
+GET /health
+
+  Returns the health status of this worker, the status of the Purchase redis queue and its depth, and DLQ depth
+
+  Responses:
+    200  Worker and all dependencies healthy
+    503  One or more dependencies unreachable
+```
+
+**Example request:**
+
+```bash
+curl http://fraud-detection:9002/health
+```
+
+**Example response (200):**
+
+```json
+{
+  "status": "healthy",
+  "service": "fraud-detection",
+  "created_at": "2026-04-21T14:53:17.616Z",
+  "checks":
+    {
+      "redis":
+        {
+          "status": "healthy",
+          "latency_ms": 1
+        },
+      "queue":
+        {
+          "status": "healthy",
+          "depth": 4,
+          "dlq_depth": 0
+        },
+      }
+}
+```
+
+**Example response (503):**
+
+```json
+{
+  "status": "unhealthy",
+  "service": "fraud-detection",
+  "created_at": "2026-04-21T14:53:17.616Z",
+  "checks":
+    {
+      "redis":
+        {
+          "status": "unhealthy",
+          "error": "connection refused"
+        },
+      "queue":
+        {
+          "status": "unhealthy",
+          "error": "connection refused"
+        },
+      }
 }
 ```
 
