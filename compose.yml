@@ -251,7 +251,7 @@ services:
       - INNER_PORT=3010
       - REDIS_URL=redis://redis:6379
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:80/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3010/health"]
       interval: 10s 
       timeout: 5s 
       retries: 3 
