@@ -22,8 +22,8 @@ await pool.query(`
         user_id TEXT UNIQUE NOT NULL,
         seat_number TEXT NOT NULL,
         event_id TEXT NOT NULL,
-        amount TEXT UNIQUE NOT NULL,
-        currency TEXT UNIQUE NOT NULL,
+        amount TEXT NOT NULL,
+        currency TEXT NOT NULL,
         purchase_id UUID DEFAULT gen_random_uuid(),
         created_at TIMESTAMPTZ DEFAULT NOW()
     );
@@ -90,6 +90,41 @@ app.post('/purchase', async (req, res) => {
     const event_id = String(payload.event_id);
     const amount = String(payload.amount);
     const currency = String(payload.currency);
+
+    // Check if seat is open, if not add to waitlist and return
+    let seats = await fetch(`http://catalog:3000/events/${event_id}/seats`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+    });
+    seats = await seats.json();
+    
+    const taken = seats.reduce((acc, seat) => {
+        return acc || seat.is_taken && (seat_number.toLowerCase() === (String(seat.row) + String(seat.seat_number)).toLowerCase());
+    }, false);
+
+    if (taken) {
+        await redis.rPush(`waitlist:${event_id}`, 
+            JSON.stringify({
+                userId: user_id
+            })
+        );
+        res
+            .status(202)
+            .json({
+                added_to_waitlist: true,
+            });
+        return;
+    }
+
+    // if (seats.length == 0) {
+    //     await redis.rPush(`waitlist:${event_id}`,
+    //     json.stringify({
+    //         userId: user_id
+    //     }))
+    // }
+
+
+    // End check if seat is open
 
     try {
         await pool.query(`INSERT INTO purchases VALUES ('${user_id}', '${seat_number}', '${event_id}', '${amount}', '${currency}');`);
