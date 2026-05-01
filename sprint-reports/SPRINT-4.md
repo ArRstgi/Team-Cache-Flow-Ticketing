@@ -56,10 +56,10 @@ After startup:
 
 | Metric | 1 replica | 3 replicas | Change |
 | ------ | --------- | ---------- | ------ |
-| p50    | | | |
-| p95    | | | |
-| p99    | | | |
-| RPS    | | | |
+| p50    | 1.87ms  | 1.8ms   | -0.07  |
+| p95    | 7.42ms  | 6.72ms  | -0.70  |
+| p99    | 15.41ms | 18.17ms | +2.76  |
+| RPS    | 52.27/s | 52.22/s | -0.005 |
 
 [Explain the improvement. Which replica count started to show diminishing returns?]
 
