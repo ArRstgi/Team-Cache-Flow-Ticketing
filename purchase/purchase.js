@@ -19,7 +19,8 @@ await subscriber.connect();
 // Ensure purchases table exists
 await pool.query(`
     CREATE TABLE IF NOT EXISTS purchases (
-        user_id TEXT UNIQUE NOT NULL,
+        idempotency_key TEXT UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+        user_id TEXT NOT NULL,
         seat_number TEXT NOT NULL,
         event_id TEXT NOT NULL,
         amount TEXT NOT NULL,
@@ -90,6 +91,7 @@ app.post('/purchase', async (req, res) => {
     const event_id = String(payload.event_id);
     const amount = String(payload.amount);
     const currency = String(payload.currency);
+    const idempotency_key = payload.idempotency_key;
 
     // Check if seat is open, if not add to waitlist and return
     let seats = await fetch(`http://catalog:3000/events/${event_id}/seats`, {
@@ -115,21 +117,14 @@ app.post('/purchase', async (req, res) => {
             });
         return;
     }
-
-    // if (seats.length == 0) {
-    //     await redis.rPush(`waitlist:${event_id}`,
-    //     json.stringify({
-    //         userId: user_id
-    //     }))
-    // }
-
-
     // End check if seat is open
 
     try {
-        await pool.query(`INSERT INTO purchases VALUES ('${user_id}', '${seat_number}', '${event_id}', '${amount}', '${currency}');`);
-        let query_results = await pool.query(`SELECT * FROM purchases WHERE user_id = '${user_id}';`);
-        query_results = (query_results.rows)[0];
+        const query_results = ( (idempotency_key === undefined) ? await pool.query(`INSERT INTO purchases VALUES (DEFAULT, '${user_id}', '${seat_number}', '${event_id}', '${amount}', '${currency}') RETURNING *;`) : await pool.query(`INSERT INTO purchases VALUES ('${idempotency_key}', '${user_id}', '${seat_number}', '${event_id}', '${amount}', '${currency}') RETURNING *;`) ).rows[0];
+        // if (idempotency_key === undefined) await pool.query(`INSERT INTO purchases VALUES (DEFAULT, '${user_id}', '${seat_number}', '${event_id}', '${amount}', '${currency}');`);
+        // else await pool.query(`INSERT INTO purchases VALUES ('${idempotency_key}', '${user_id}', '${seat_number}', '${event_id}', '${amount}', '${currency}');`);
+        // let query_results = await pool.query(`SELECT * FROM purchases WHERE user_id = '${user_id}';`);
+        // query_results = (query_results.rows)[-1];
 
         // Post to fraud detection queue
         try {
@@ -174,22 +169,16 @@ app.post('/purchase', async (req, res) => {
         res
             .status(200)
             .json({
-                duplicate: true,
-                user_id: query_results.user_id,
-                seat_number: query_results.seat_number,
-                event_id: query_results.event_id,
-                amount: query_results.amount,
-                currency: query_results.currency,
-                purchase_id: query_results.purchase_id,
-                created_at: query_results.created_at
+                duplicate: true
             });
     }
 });
 
 app.get('/fetch_purchase', async (req, res) => {
-    const payload = req.query ?? {};
+    const payload = req.body ?? {};
     const user_id = String(payload.user_id);
     const purchase_id = String(payload.purchase_id);
+    console.log(payload);
 
     try {
         let cache_fetch = await redis.get(`${user_id}, ${purchase_id}`);
@@ -260,29 +249,29 @@ app.get('/', (_req, res) => {
     `);
 });
 
-app.get('/manual_test', (_req, res) => {
-    res.send(`
-        <h1>Manual Purchase Test</h1>
-        <form action="/purchase" method="POST" id="form">
-            <label for="user_id">user_id:</label>
-            <input type="text" id="user_id" name="user_id" value="1" required><br>
+// app.get('/manual_test', (_req, res) => {
+//     res.send(`
+//         <h1>Manual Purchase Test</h1>
+//         <form action="/purchase" method="POST" id="form">
+//             <label for="user_id">user_id:</label>
+//             <input type="text" id="user_id" name="user_id" value="1" required><br>
 
-            <label for="seat_number">seat_number:</label>
-            <input type="text" id="seat_number" name="seat_number" value="5" required><br>
+//             <label for="seat_number">seat_number:</label>
+//             <input type="text" id="seat_number" name="seat_number" value="5" required><br>
 
-            <label for="event_id">event_id:</label>
-            <input type="text" id="event_id" name="event_id" value="777" required><br>
+//             <label for="event_id">event_id:</label>
+//             <input type="text" id="event_id" name="event_id" value="777" required><br>
 
-            <label for="amount">amount:</label>
-            <input type="text" id="amount" name="amount" value="256" required><br>
+//             <label for="amount">amount:</label>
+//             <input type="text" id="amount" name="amount" value="256" required><br>
 
-            <label for="currency">currency:</label>
-            <input type="text" id="currency" name="currency" value="PHP" required><br>
+//             <label for="currency">currency:</label>
+//             <input type="text" id="currency" name="currency" value="PHP" required><br>
 
-            <button type="submit">Submit</button>
-        </form>
-    `);
-});
+//             <button type="submit">Submit</button>
+//         </form>
+//     `);
+// });
 
 app.listen(port, () => {
     console.log(
