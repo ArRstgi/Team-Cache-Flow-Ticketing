@@ -39,9 +39,9 @@ ON CONFLICT DO NOTHING;
 -- Insert a small mock seat map for Event 2 
 INSERT INTO seats (event_id, section, row, seat_number, is_taken)
 VALUES 
-    (2, 'Courtside', '1', 1, FALSE),
-    (2, 'Courtside', '1', 2, FALSE),
-    (2, 'Loge', '12', 5, FALSE)
+    (2, 'Courtside', 'A', 1, TRUE),
+    (2, 'Courtside', 'A', 2, FALSE),
+    (2, 'Loge', 'B', 5, FALSE)
 ON CONFLICT DO NOTHING;
 
 -- Resync the auto-incrementing sequences after manual inserts

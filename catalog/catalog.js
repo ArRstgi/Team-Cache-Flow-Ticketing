@@ -138,6 +138,53 @@ app.get('/events/:id/seats', async (req, res) => {
   }
 });
 
+// Core Endpoint: Get Specific Seat Status by Row and Seat Number (e.g., A2)
+app.get('/events/:eventId/seats/:seatLabel', async (req, res) => {
+  try {
+    const { eventId, seatLabel } = req.params;
+    
+    // Normalize the label to uppercase for the cache key (e.g., 'a2' becomes 'A2')
+    const normalizedLabel = seatLabel.toUpperCase();
+    
+    // Updated cache key to reflect that we are only storing the boolean status
+    const cacheKey = `events:${eventId}:seats:label:${normalizedLabel}:status`;
+
+    // Check Redis Cache
+    const cachedStatus = await redisClient.get(cacheKey);
+    if (cachedStatus !== null) {
+      console.log(`[Replica ${replicaId}] Cache hit for /events/${eventId}/seats/${normalizedLabel}`);
+      // Convert the cached string 'true' or 'false' back to a literal boolean
+      return res.status(200).json(cachedStatus === 'true');
+    }
+
+    console.log(`[Replica ${replicaId}] Cache miss for /events/${eventId}/seats/${normalizedLabel}. Querying database...`);
+    
+    // Query Database: We only need to SELECT is_taken now
+    const result = await pool.query(
+      `SELECT is_taken 
+       FROM seats 
+       WHERE event_id = $1 AND UPPER(CONCAT(row, seat_number)) = $2`, 
+      [eventId, normalizedLabel]
+    );
+    
+    // Handle Seat Not Found
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: `Seat ${normalizedLabel} not found for this event` });
+    }
+
+    const isTaken = result.rows[0].is_taken;
+
+    // Cache the boolean result as a string for 60 seconds
+    await redisClient.setEx(cacheKey, 60, String(isTaken));
+    
+    // Return just the literal boolean
+    res.status(200).json(isTaken);
+  } catch (error) {
+    console.error(`[Replica ${replicaId}] Error fetching seat status:`, error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 // Core Endpoint: Create New Event and Initialize Seats
 app.post('/events', async (req, res) => {
   const { name, venue, date, total_seats, seats } = req.body;

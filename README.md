@@ -467,6 +467,44 @@ curl http://catalog:3000/events/1/seats
 ```
 
 ---
+
+#### GET /events/:eventId/seats/:seatLabel
+
+```
+GET /events/:eventId/seats/:seatLabel
+
+  Returns a boolean indicating whether a specific seat is taken, using its row and seat number label (e.g., A2, G15).
+
+  Responses:
+    200  Successful response containing true or false
+    404  Seat not found for this event
+    500  Internal Server Error
+
+```
+
+
+**Example request:**
+
+```bash
+curl http://catalog:3000/events/1/seats/A2
+```
+
+**Example response (200):**
+
+```json
+false
+```
+
+**Example response (404):**
+
+```json
+{
+  "error": "Seat A2 not found for this event"
+}
+```
+
+
+---
 ### Purchase
 
 #### Primary Function:
