@@ -19,29 +19,37 @@ CREATE TABLE IF NOT EXISTS seats (
 
 -- Insert Events
 INSERT INTO events (id, name, venue, date, total_seats, available_seats)
-VALUES (1, 'Laufey Tour', 'Madison Square Garden', '2025-05-05 15:55:55', 55000, 55000)
+VALUES (1, 'Laufey Tour', 'Madison Square Garden', '2025-05-05 15:55:55', 6000, 6000)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO events (id, name, venue, date, total_seats, available_seats)
-VALUES (2, 'Boston Celtics vs. Thunder', 'TD Garden', '2023-04-15 12:35:00', 50000, 30000)
+VALUES (2, 'Boston Celtics vs. Thunder', 'TD Garden', '2023-04-15 12:35:00', 6000, 6000)
 ON CONFLICT DO NOTHING;
 
--- Insert a small mock seat map for Event 1 
+-- Insert 3000 seats for Event 1 (Section 'Main', Rows A-E, Seats 1-600)
 INSERT INTO seats (event_id, section, row, seat_number, is_taken)
-VALUES 
-    (1, 'VIP', 'A', 1, FALSE),
-    (1, 'VIP', 'A', 2, FALSE),
-    (1, 'VIP', 'A', 3, FALSE),
-    (1, '101', 'G', 15, FALSE),
-    (1, '101', 'G', 16, FALSE)
+SELECT 
+    1 AS event_id, 
+    'Main' AS section, 
+    chr(r) AS row, 
+    s AS seat_number, 
+    FALSE AS is_taken
+FROM 
+    generate_series(65, 69) AS r, -- ASCII 65=A, 69=E
+    generate_series(1, 600) AS s
 ON CONFLICT DO NOTHING;
 
--- Insert a small mock seat map for Event 2 
+-- Insert 3000 seats for Event 2 (Section 'Main', Rows A-E, Seats 1-600)
 INSERT INTO seats (event_id, section, row, seat_number, is_taken)
-VALUES 
-    (2, 'Courtside', 'A', 1, TRUE),
-    (2, 'Courtside', 'A', 2, FALSE),
-    (2, 'Loge', 'B', 5, FALSE)
+SELECT 
+    2 AS event_id, 
+    'Main' AS section, 
+    chr(r) AS row, 
+    s AS seat_number, 
+    FALSE AS is_taken
+FROM 
+    generate_series(65, 69) AS r, 
+    generate_series(1, 600) AS s
 ON CONFLICT DO NOTHING;
 
 -- Resync the auto-incrementing sequences after manual inserts
