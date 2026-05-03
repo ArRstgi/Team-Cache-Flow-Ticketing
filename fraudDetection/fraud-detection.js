@@ -17,28 +17,9 @@ client.on('error', err => {
   console.error('Fraud Detection Redis error:', err.message)
 })
 
-let testOrder1 = {
-    purchase_id: '1',
-    user_id: 'test1',
-    seat_number: '5',
-    event_id: '777',
-    created_at: new Date().toISOString()
-}
-let testOrder2 = {
-    purchase_id: '1',
-    created_at: new Date().toISOString()
-}
-let testOrder3 = {
-    user_id: 123,
-    created_at: new Date().toISOString()
-}
-let testOrder4 = {
-    purchase_id: '1'
-}
-
 async function processJob(order) {
   console.log("Fraud detection started")
-  if (!order.purchase_id || !order.user_id || !order.created_at || !order.seat_number){
+  if (!order.purchase_id || !order.user_id || !order.event_id || !order.created_at || !order.seat_number || !order.amount || !order.currency){
     client.lPush(`${queueName}:dlq`, JSON.stringify(order))
     console.log("Malformed request, pushed to DLQ")
     return
