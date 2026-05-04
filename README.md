@@ -59,7 +59,7 @@ k6 run --env SCALE=replicated k6/sprint-4-replica.js
 ```
 caddy         http://localhost:80
 catalog       (accessed internally or via Caddy)
-payment       http://localhost:3002
+payment       (no host port — access via Caddy at http://localhost/payment/... or internally at http://payment:3000)
 notification  http://localhost:3003
 waitlist      http://localhost:3010
 purchase      http://localhost:9001
@@ -861,12 +861,26 @@ curl -X POST http://refund:3000/refund \
 
 ### Payment
 
+> **Replication:** The payment service is stateless and supports horizontal scaling. It has no `container_name` and no host port binding, so multiple replicas can run without collision. Caddy distributes traffic across all replicas via round-robin at `/payment/*`. Each replica identifies itself via `os.hostname()` — visible in `/health` as `service_instance`.
+>
+> ```bash
+> # Start with 3 replicas
+> docker compose up --scale payment=3 -d
+>
+> # Verify all replicas are healthy
+> docker compose ps | grep payment
+>
+> # Confirm round-robin from inside holmes
+> for i in $(seq 1 9); do curl -s http://caddy/payment/health | jq .service_instance; done
+> ```
+
 #### GET /health
 
 ```
 GET /health
 
-  Returns the health status of this service and its Redis dependency.
+  Returns the health status of this replica and its Redis dependency.
+  service_instance identifies which replica responded — useful when scaled.
 
   Responses:
     200  Service and all dependencies healthy
@@ -877,6 +891,8 @@ GET /health
 
 ```bash
 curl http://payment:3000/health
+# or via Caddy (round-robins across replicas):
+curl http://localhost/payment/health
 ```
 
 **Example response (200):**
@@ -885,6 +901,7 @@ curl http://payment:3000/health
 {
   "status": "healthy",
   "service": "payment",
+  "service_instance": "event-ticketing-payment-2",
   "timestamp": "2026-04-21T15:00:00.000Z",
   "uptime_seconds": 120,
   "checks": {
@@ -902,6 +919,7 @@ curl http://payment:3000/health
 {
   "status": "unhealthy",
   "service": "payment",
+  "service_instance": "event-ticketing-payment-1",
   "timestamp": "2026-04-21T15:00:00.000Z",
   "uptime_seconds": 5,
   "checks": {
