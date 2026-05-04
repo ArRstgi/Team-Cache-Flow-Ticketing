@@ -468,6 +468,54 @@ curl http://catalog:3000/events/1/seats
 
 ---
 
+#### POST /events/:eventId/mark/:seatLabel
+
+```
+POST /events/:eventId/mark/:seatLabel
+
+  Marks a specific seat as taken. Uses an atomic update to prevent race conditions.
+
+  Responses:
+    200  Successful response. Returns the updated seat data.
+    404  Seat not found for this event.
+    409  Conflict. Seat is already taken.
+    500  Internal Server Error.
+
+
+**Example request:**
+
+```bash
+curl -X POST http://catalog:3000/events/1/mark/A2
+```
+
+**Example response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Seat A2 successfully marked as taken",
+  "seat": {
+    "id": 2,
+    "section": "VIP",
+    "row": "A",
+    "seat_number": 2
+  }
+}
+```
+
+**Example response (409):**
+
+```json
+{
+  "success": false,
+  "error": "Seat A2 is already taken"
+}
+```
+
+
+---
+
+
 #### GET /events/:eventId/seats/:seatLabel
 
 ```
