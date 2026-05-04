@@ -67,13 +67,17 @@ app.post('/refund', async (req, res) => {
     const purchaseRes = await fetch(url);
 
     if (purchaseRes.status === 404) {
-      return res.status(404).json({ error: 'Purchase service not found' });
+      return res.status(404).json({ error: 'Purchase endpoint not found' });
     }
     if (!purchaseRes.ok) {
       return res.status(502).json({ error: 'Purchase service error' });
     }
 
     purchase = await purchaseRes.json();
+    console.log("Purchase", purchase)
+    if ("err" in purchase) {
+      return res.status(400).json({ error: `Purchase has not been made, cannot be refunded. ${purchase.err}` });
+    }
   } catch (err) {
     console.error('Failed to reach purchase service:', err);
     return res.status(503).json({ error: 'Purchase service unreachable' });
@@ -103,8 +107,8 @@ app.post('/refund', async (req, res) => {
       body: JSON.stringify({
         user_id,
         purchase_id,
-        amount: purchase.amountPaid ?? 100,
-        currency: purchase.currency ?? "USD",
+        amount: purchase.amount,
+        currency: purchase.currency,
       }),
     });
 

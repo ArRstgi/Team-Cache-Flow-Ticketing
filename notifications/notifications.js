@@ -7,6 +7,26 @@ const redis = createClient({ url: process.env.REDIS_URL });
 await redis.connect();
 
 const startTime = Date.now();
+const subscriber = redis.duplicate();
+await subscriber.connect();
+
+await subscriber.subscribe('purchase.processed', (message) => {
+    try {
+        const event = JSON.parse(message);
+        console.log(JSON.stringify({
+            event: 'confirmation_email_sent',
+            user_id: event.user_id,
+            event_id: event.event_id,
+            purchase_id: event.purchase_id,
+            timestamp: new Date().toISOString(),
+        }));
+        console.log(`[Notification] Confirmation email sent to user ${event.user_id} for event ${event.event_id}`);
+    } catch (err) {
+        console.error('[Notification] Failed to process purchase.processed message:', err.message);
+    }
+});
+ 
+console.log('[Notification] Subscribed to purchase.processed')
 
 // Notification Worker Service
 const QUEUE_NAME = process.env.QUEUE_NAME ?? 'notifications:queue';

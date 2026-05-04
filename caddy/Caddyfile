@@ -1,5 +1,26 @@
 :80 {
-    reverse_proxy catalog:3000 {
+
+    handle_path /purchase/* {
+        reverse_proxy purchase:9001 {
+            lb_policy round_robin
+        }
+    }
+
+    handle_path /catalog/* {
+        reverse_proxy catalog:3000 {
+            lb_policy round_robin
+        }
+    }
+
+    handle_path /payment/* {
+        reverse_proxy payment:3000 {
+            lb_policy round_robin
+        }
+    }
+}
+
+:9001 {
+    reverse_proxy purchase:9001 {
         lb_policy round_robin
     }
 }

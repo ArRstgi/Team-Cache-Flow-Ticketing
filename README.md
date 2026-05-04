@@ -50,12 +50,16 @@ docker compose exec holmes bash
 k6 run k6/sprint-1.js
 k6 run k6/sprint-2-cache.js
 k6 run k6/sprint-2-async.js
+k6 run k6/sprint-3-poison.js
+k6 run --env SCALE=single k6/sprint-4-scale.js
+k6 run --env SCALE=replicated k6/sprint-4-scale.js
+k6 run --env SCALE=replicated k6/sprint-4-replica.js
 ```
 ### Base URLs (development)
 ```
 caddy         http://localhost:80
 catalog       (accessed internally or via Caddy)
-payment       http://localhost:3002
+payment       (no host port — access via Caddy at http://localhost/payment/... or internally at http://payment:3000)
 notification  http://localhost:3003
 waitlist      http://localhost:3010
 purchase      http://localhost:9001
@@ -69,6 +73,7 @@ frontend      http://localhost:8080
 > `curl http://catalog:3000/health`
 > `curl http://payment:3000/health`
 > `curl http://purchase:9001/health`
+> `curl http://fraud-detection:9002/health`
 > `curl http://refund:3001/health`
 > `curl http://analytics:3005/health`
 > curl http://catalog:3000/health
@@ -463,6 +468,54 @@ curl http://catalog:3000/events/1/seats
 
 ---
 
+#### POST /events/:eventId/mark/:seatLabel
+
+```
+POST /events/:eventId/mark/:seatLabel
+
+  Marks a specific seat as taken. Uses an atomic update to prevent race conditions.
+
+  Responses:
+    200  Successful response. Returns the updated seat data.
+    404  Seat not found for this event.
+    409  Conflict. Seat is already taken.
+    500  Internal Server Error.
+
+
+**Example request:**
+
+```bash
+curl -X POST http://catalog:3000/events/1/mark/A2
+```
+
+**Example response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Seat A2 successfully marked as taken",
+  "seat": {
+    "id": 2,
+    "section": "VIP",
+    "row": "A",
+    "seat_number": 2
+  }
+}
+```
+
+**Example response (409):**
+
+```json
+{
+  "success": false,
+  "error": "Seat A2 is already taken"
+}
+```
+
+
+---
+
+
 #### GET /events/:eventId/seats/:seatLabel
 
 ```
@@ -510,7 +563,9 @@ Take an object of
 {
   user_id: String, 
   seat_number: String, 
-  event_id: String
+  event_id: String,
+  amount: String,
+  currency: String
 }
 ```
 
@@ -521,6 +576,8 @@ and transform it into:
   user_id TEXT UNIQUE NOT NULL,
   seat_number TEXT NOT NULL,
   event_id TEXT NOT NULL,
+  amount: TEXT NOT NULL,
+  currency: TEXT NOT NULL,
   purchase_id UUID DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT NOW()
 }
@@ -560,6 +617,8 @@ GET /
       user_id: String,
       seat_number: String,
       event_id: String
+      amount: String,
+      currency: String
     }
   
   Responses:
@@ -569,6 +628,8 @@ GET /
       user_id,
       seat_number,
       event_id,
+      amount: String,
+      currency: String
       purchase_id,
       created_at
     }
@@ -578,6 +639,8 @@ GET /
       user_id,
       seat_number,
       event_id,
+      amount: String,
+      currency: String
       purchase_id,
       created_at
     }
@@ -586,20 +649,24 @@ GET /
 ###### Example Request
 ```
   {
-    user_id: 1e1
-    seat_number: a2
-    event_id: cool
+    user_id: 1e1,
+    seat_number: a2,
+    event_id: cool,
+    amount: 200,
+    currency: PHP
   }
 ```
 
 ###### Example Response
 ```
   {
-    duplicate: true
-    user_id: 1e1
-    seat_number: a2
-    event_id: cool
-    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
+    duplicate: true,
+    user_id: 1e1,
+    seat_number: a2,
+    event_id: cool,
+    amount: 200,
+    currency: PHP,
+    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1,
     created_at: 2023-03-16 16:35:20.703644+11
   }
 ```
@@ -608,6 +675,58 @@ GET /
 
 ```
   Allows for manual entry of payload to be sent to /purchase.
+```
+
+#### GET /fetch_purchase
+
+```
+  Retrieves an entry via user_id and purchase_id.
+
+  Request:
+    {
+      user_id,
+      purchase_id
+    }
+
+  Responses:
+    201 Successfully retrieved
+      {
+        user_id,
+        seat_number,
+        event_id,
+        amount,
+        currency,
+        purchase_id,
+        created_at
+      }
+    200 Failed to fetch
+      {
+        user_id,
+        purchase_id,
+        err
+      }
+```
+
+###### Example Request
+```
+  {
+    user_id: 1e1,
+    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
+  }
+```
+
+###### Example Response
+```
+  {
+    duplicate: true
+    user_id: 1e1,
+    seat_number: a2,
+    event_id: cool,
+    amount: 200,
+    currency: PHP,
+    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1,
+    created_at: 2023-03-16 16:35:20.703644+11
+  }
 ```
 
 ##### GET /dump_db
@@ -742,12 +861,26 @@ curl -X POST http://refund:3000/refund \
 
 ### Payment
 
+> **Replication:** The payment service is stateless and supports horizontal scaling. It has no `container_name` and no host port binding, so multiple replicas can run without collision. Caddy distributes traffic across all replicas via round-robin at `/payment/*`. Each replica identifies itself via `os.hostname()` — visible in `/health` as `service_instance`.
+>
+> ```bash
+> # Start with 3 replicas
+> docker compose up --scale payment=3 -d
+>
+> # Verify all replicas are healthy
+> docker compose ps | grep payment
+>
+> # Confirm round-robin from inside holmes
+> for i in $(seq 1 9); do curl -s http://caddy/payment/health | jq .service_instance; done
+> ```
+
 #### GET /health
 
 ```
 GET /health
 
-  Returns the health status of this service and its Redis dependency.
+  Returns the health status of this replica and its Redis dependency.
+  service_instance identifies which replica responded — useful when scaled.
 
   Responses:
     200  Service and all dependencies healthy
@@ -758,6 +891,8 @@ GET /health
 
 ```bash
 curl http://payment:3000/health
+# or via Caddy (round-robins across replicas):
+curl http://localhost/payment/health
 ```
 
 **Example response (200):**
@@ -766,6 +901,7 @@ curl http://payment:3000/health
 {
   "status": "healthy",
   "service": "payment",
+  "service_instance": "event-ticketing-payment-2",
   "timestamp": "2026-04-21T15:00:00.000Z",
   "uptime_seconds": 120,
   "checks": {
@@ -783,6 +919,7 @@ curl http://payment:3000/health
 {
   "status": "unhealthy",
   "service": "payment",
+  "service_instance": "event-ticketing-payment-1",
   "timestamp": "2026-04-21T15:00:00.000Z",
   "uptime_seconds": 5,
   "checks": {
@@ -1002,6 +1139,75 @@ Example response (200):
   "dlq_depth": 0,
   "jobs_processed": 1,
   "last_job_at": "2026-04-21T10:20:48.094Z"
+}
+```
+
+---
+
+## Fraud Detection
+
+#### GET /health
+
+```
+GET /health
+
+  Returns the health status of this worker, the status of the Purchase redis queue and its depth, and DLQ depth
+
+  Responses:
+    200  Worker and all dependencies healthy
+    503  One or more dependencies unreachable
+```
+
+**Example request:**
+
+```bash
+curl http://fraud-detection:9002/health
+```
+
+**Example response (200):**
+
+```json
+{
+  "status": "healthy",
+  "service": "fraud-detection",
+  "created_at": "2026-04-21T14:53:17.616Z",
+  "checks":
+    {
+      "redis":
+        {
+          "status": "healthy",
+          "latency_ms": 1
+        },
+      "queue":
+        {
+          "status": "healthy",
+          "depth": 4,
+          "dlq_depth": 0
+        },
+      }
+}
+```
+
+**Example response (503):**
+
+```json
+{
+  "status": "unhealthy",
+  "service": "fraud-detection",
+  "created_at": "2026-04-21T14:53:17.616Z",
+  "checks":
+    {
+      "redis":
+        {
+          "status": "unhealthy",
+          "error": "connection refused"
+        },
+      "queue":
+        {
+          "status": "unhealthy",
+          "error": "connection refused"
+        },
+      }
 }
 ```
 
