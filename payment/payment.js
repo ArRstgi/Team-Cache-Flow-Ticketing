@@ -1,8 +1,10 @@
 const http = require("http");
+const os = require("os");
 const redis = require("ioredis");
 
 const PORT = process.env.PORT || 3000;
 const REDIS_URL = process.env.REDIS_URL || "redis://redis:6379";
+const replicaId = os.hostname();
 
 const redisClient = new redis(REDIS_URL, {
   lazyConnect: true,
@@ -41,6 +43,7 @@ const server = http.createServer(async (req, res) => {
       JSON.stringify({
         status: healthy ? "healthy" : "unhealthy",
         service: "payment",
+        service_instance: replicaId,
         timestamp: new Date().toISOString(),
         uptime_seconds: Math.floor((Date.now() - startTime) / 1000),
         checks: {
@@ -126,5 +129,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () =>
-  console.log(`Payment service listening on port ${PORT}`),
+  console.log(`[Replica ${replicaId}] Payment service listening on port ${PORT}`),
 );
