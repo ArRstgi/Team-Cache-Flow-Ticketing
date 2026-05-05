@@ -37,7 +37,7 @@
 # Start everything (builds images on first run)
 docker compose up --build
 # Start with service replicas (Sprint 4)
-docker compose up --scale your-service=3
+docker compose up --scale purchase=3 --scale catalog=3 --scale payment=3
 # Verify all services are healthy
 docker compose ps
 # Stream logs
@@ -57,12 +57,12 @@ k6 run --env SCALE=replicated k6/sprint-4-replica.js
 ```
 ### Base URLs (development)
 ```
-caddy         http://localhost:80
-catalog       (accessed internally or via Caddy)
-payment       http://localhost:3002
+caddy         http://caddy:80
+catalog       (accessed internally at http://catalog:3000 or via Caddy at http://caddy:80/catalog/...)
+payment       (accessed internally at http://payment:3000 or via Caddy at http://caddy:80/payment/...)
 notification  http://localhost:3003
 waitlist      http://localhost:3010
-purchase      http://localhost:9001
+purchase      (accessed internally at http://purchase:9001 or via Caddy at http://caddy:80/purchase/...)
 analytics     http://localhost:3005
 refund        (no host port — internal only)
 refund        http://localhost:3004
@@ -99,9 +99,7 @@ N/A
 -->
 N/A
 ---
-### [Service Name]
-
-### [Waitlist]
+### Waitlist
 
 ### GET /health
 
@@ -467,6 +465,92 @@ curl http://catalog:3000/events/1/seats
 ```
 
 ---
+
+#### POST /events/:eventId/mark/:seatLabel
+
+```
+POST /events/:eventId/mark/:seatLabel
+
+  Marks a specific seat as taken. Uses an atomic update to prevent race conditions.
+
+  Responses:
+    200  Successful response. Returns the updated seat data.
+    404  Seat not found for this event.
+    409  Conflict. Seat is already taken.
+    500  Internal Server Error.
+
+
+**Example request:**
+
+```bash
+curl -X POST http://catalog:3000/events/1/mark/A2
+```
+
+**Example response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Seat A2 successfully marked as taken",
+  "seat": {
+    "id": 2,
+    "section": "VIP",
+    "row": "A",
+    "seat_number": 2
+  }
+}
+```
+
+**Example response (409):**
+
+```json
+{
+  "success": false,
+  "error": "Seat A2 is already taken"
+}
+```
+
+
+---
+
+
+#### GET /events/:eventId/seats/:seatLabel
+
+```
+GET /events/:eventId/seats/:seatLabel
+
+  Returns a boolean indicating whether a specific seat is taken, using its row and seat number label (e.g., A2, G15).
+
+  Responses:
+    200  Successful response containing true or false
+    404  Seat not found for this event
+    500  Internal Server Error
+
+```
+
+
+**Example request:**
+
+```bash
+curl http://catalog:3000/events/1/seats/A2
+```
+
+**Example response (200):**
+
+```json
+false
+```
+
+**Example response (404):**
+
+```json
+{
+  "error": "Seat A2 not found for this event"
+}
+```
+
+
+---
 ### Purchase
 
 #### Primary Function:
@@ -487,7 +571,8 @@ and transform it into:
 
 ```
 {
-  user_id TEXT UNIQUE NOT NULL,
+  idempotency_key TEXT UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
   seat_number TEXT NOT NULL,
   event_id TEXT NOT NULL,
   amount: TEXT NOT NULL,
@@ -497,11 +582,11 @@ and transform it into:
 }
 ```
 
-in which ```purchase_id``` and ```created_at``` are default. This is added to the ```purchases``` database. Returns JSON of added entry along with a duplicate field, indicating if an entry of that user_id already exists on the database. Handles idempotency via ```user_id```, in which on detecting an existing entry with the same ```user_id``` returns that entry along with code ```200```, else ```201```.
+in which ```purchase_id``` and ```created_at``` are default. This is added to the ```purchases``` database. Returns JSON of added entry along with a duplicate field, indicating if an entry of that user_id already exists on the database. Handles idempotency via ```idempotency_key```, in which on detecting an existing entry with the same ```user_id``` returns that entry along with code ```200```, else ```201```.
 
-#### Endpoints:
+---
 
-##### GET /health
+#### GET /health
 
 ```
 GET /health
@@ -513,18 +598,60 @@ GET /health
     503  One or more dependencies unreachable
 ```
 
-##### GET /
+**Example request:**
 
-```
-GET /
-
-  Returns HTML Purchase is Online!
+```bash
+curl http://purchase:9001/health
 ```
 
-##### POST /purchase
+**Example response (200):**
+
+```json
+{
+  "status": "healthy",
+  "service": "unknown",
+  "timestamp": "2026-05-04T17:47:09.997Z",
+  "uptime_seconds": 80,
+  "checks": {
+    "database": {
+      "status": "healthy",
+      "latency_ms": 0
+    },
+    "redis": {
+      "status": "healthy",
+      "latency_ms": 1
+    }
+  }
+}
+```
+
+**Example response (503):**
+
+```json
+{
+  "status": "unhealthy",
+  "service": "unknown",
+  "timestamp": "2026-05-04T17:47:09.997Z",
+  "uptime_seconds": 80,
+  "checks": {
+    "database": {
+      "status": "healthy",
+      "latency_ms": 0
+    },
+    "redis": {
+      "status": "unhealthy",
+      "error": "unexpected response: undefined"
+    }
+  }
+}
+```
+
+---
+
+#### POST /purchase
 
 ```
-  Post a payload to be processed and placed on purchases queue.
+  Post a payload to be processed and placed on purchases queue. Can manually set idempotency_key by adding the field before user_id.
 
   Request:
     {
@@ -537,59 +664,67 @@ GET /
   
   Responses:
     201 New entry, added to database.
-    {
-      duplicate: false,
-      user_id,
-      seat_number,
-      event_id,
-      amount: String,
-      currency: String
-      purchase_id,
-      created_at
-    }
-    200 Duplicate entry (determined by user_id), not added.
-    {
-      duplicate: true,
-      user_id,
-      seat_number,
-      event_id,
-      amount: String,
-      currency: String
-      purchase_id,
-      created_at
-    }
+      {
+        duplicate: false,
+        user_id,
+        seat_number,
+        event_id,
+        amount: String,
+        currency: String
+        purchase_id,
+        created_at
+      }
+    202 Seat taken, not added.
+      {
+        added_to_waitlist: true
+      }
+    200 Duplicate entry (determined by idempotency_key), not added.
+      {
+        duplicate: true,
+      }
 ```
 
-###### Example Request
+**Example request:**
+
+```bash
+curl -s -X POST http://localhost/purchase/purchase -H "Content-Type: application/json" -d '{"user_id": "2", "seat_number": "A1", "event_id": "1", "amount": "10", "currency": "PHP"}'
 ```
+
+**Example Response (201)**
+```json
   {
-    user_id: 1e1,
-    seat_number: a2,
-    event_id: cool,
-    amount: 200,
-    currency: PHP
+    "duplicate": true,
+    "user_id": "1e1",
+    "seat_number": "a2",
+    "event_id": "cool",
+    "amount": "200",
+    "currency": "PHP",
+    "purchase_id": "5b30857f-0bfa-48b5-ac0b-5c64e28078d1",
+    "created_at": "2023-03-16 16:35:20.703644+11"
   }
 ```
 
-###### Example Response
-```
+**Example Response (202)**
+```json
   {
-    duplicate: true,
-    user_id: 1e1,
-    seat_number: a2,
-    event_id: cool,
-    amount: 200,
-    currency: PHP,
-    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1,
-    created_at: 2023-03-16 16:35:20.703644+11
+    "added_to_waitlist": true
   }
 ```
 
-##### GET /manual_test
+**Example request (Manual Idempotency Key Entry):**
 
+```bash
+curl -s -X POST http://localhost/purchase/purchase -H "Content-Type: application/json" -d '{"idempotency_key":"7a6173a6-c2ed-488a-81ee-ac2738554daa", "user_id": "2", "seat_number": "A2", "event_id": "1", "amount": "10", "currency": "PHP"}'
 ```
-  Allows for manual entry of payload to be sent to /purchase.
+
+**Example Response (200)**
+```json
+  {
+    "duplicate": true
+  }
 ```
+
+---
 
 #### GET /fetch_purchase
 
@@ -621,27 +756,33 @@ GET /
       }
 ```
 
-###### Example Request
+**Example Request**
+```bash
+curl -s -X GET http://localhost/purchase/fetch_purchase -H "Content-Type: application/json" -d '{"user_id": "2", "purchase_id":"912cb938-6e5a-403c-8dec-8532c94ffaba"}'
 ```
+
+**Example Response (201)**
+```json
   {
-    user_id: 1e1,
-    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
+    "user_id": "2",
+    "seat_number": "A1",
+    "event_id": "1",
+    "amount": "10",
+    "currency": "PHP",
+    "purchase_id": "912cb938-6e5a-403c-8dec-8532c94ffaba","created_at": "2026-05-04T19:08:08.829Z"
   }
 ```
 
-###### Example Response
-```
+**Example Response (200)**
+```json
   {
-    duplicate: true
-    user_id: 1e1,
-    seat_number: a2,
-    event_id: cool,
-    amount: 200,
-    currency: PHP,
-    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1,
-    created_at: 2023-03-16 16:35:20.703644+11
+    "user_id": "1",
+    "purchase_id": "912cb938-6e5a-403c-8dec-8532c94ffaba",
+    "err": {}
   }
 ```
+
+---
 
 ##### GET /dump_db
 
@@ -655,24 +796,56 @@ GET /
     }
 ```
 
-###### Example Response
+**Example Request**
+```bash
+  curl http://localhost/purchase/dump_db 
 ```
+
+**Example Response (200)**
+```json
   {
-    rows: [
+    "rows":
+    [
       {
-        user_id: 1e1
-        seat_number: a2
-        event_id: cool
-        purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
-        created_at: 2023-03-16 16:35:20.703644+11
+        "idempotency_key": "7a6173a6-c2ed-488a-81ee-ac2738554daa",
+        "user_id": "2",
+        "seat_number": "A1",
+        "event_id": "1",
+        "amount": "10",
+        "currency": "PHP",
+        "purchase_id": "912cb938-6e5a-403c-8dec-8532c94ffaba",
+        "created_at": "2026-05-04T19:08:08.829Z"
       },
       {
-        user_id: d21
-        seat_number: a3
-        event_id: swag
-        purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
-        created_at: 2023-03-16 16:35:20.703644+11
+        "idempotency_key": "4317d820-c774-4805-a50b-7920d8f9e1c4",
+        "user_id": "3",
+        "seat_number": "A3",
+        "event_id": "1",
+        "amount": "10",
+        "currency": "PHP",
+        "purchase_id": "69fd870d-3f02-4021-9a4d-5a3077444698",
+        "created_at": "2026-05-04T19:25:01.165Z"
       },
+      {
+        "idempotency_key": "c421fdd0-d6cc-4d60-954e-fdab523b18d8",
+        "user_id": "6",
+        "seat_number": "A2",
+        "event_id": "2",
+        "amount": "11",
+        "currency": "PHP",
+        "purchase_id": "60f0d83d-b519-4d16-a467-200247397931",
+        "created_at": "2026-05-04T19:26:35.503Z"
+      },
+      {
+        "idempotency_key": "35e48ef5-1a15-49d2-82ef-9424753bd9a5",
+        "user_id": "60",
+        "seat_number": "b5",
+        "event_id": "2",
+        "amount": "11",
+        "currency": "PHP",
+        "purchase_id": "286551c7-0a62-4245-afc3-59720d842b2f",
+        "created_at": "2026-05-04T19:27:01.956Z"
+      }
     ]
   }
 ```
@@ -775,12 +948,26 @@ curl -X POST http://refund:3000/refund \
 
 ### Payment
 
+> **Replication:** The payment service is stateless and supports horizontal scaling. It has no `container_name` and no host port binding, so multiple replicas can run without collision. Caddy distributes traffic across all replicas via round-robin at `/payment/*`. Each replica identifies itself via `os.hostname()` — visible in `/health` as `service_instance`.
+>
+> ```bash
+> # Start with 3 replicas
+> docker compose up --scale payment=3 -d
+>
+> # Verify all replicas are healthy
+> docker compose ps | grep payment
+>
+> # Confirm round-robin from inside holmes
+> for i in $(seq 1 9); do curl -s http://caddy/payment/health | jq .service_instance; done
+> ```
+
 #### GET /health
 
 ```
 GET /health
 
-  Returns the health status of this service and its Redis dependency.
+  Returns the health status of this replica and its Redis dependency.
+  service_instance identifies which replica responded — useful when scaled.
 
   Responses:
     200  Service and all dependencies healthy
@@ -791,6 +978,8 @@ GET /health
 
 ```bash
 curl http://payment:3000/health
+# or via Caddy (round-robins across replicas):
+curl http://localhost/payment/health
 ```
 
 **Example response (200):**
@@ -799,6 +988,7 @@ curl http://payment:3000/health
 {
   "status": "healthy",
   "service": "payment",
+  "service_instance": "event-ticketing-payment-2",
   "timestamp": "2026-04-21T15:00:00.000Z",
   "uptime_seconds": 120,
   "checks": {
@@ -816,6 +1006,7 @@ curl http://payment:3000/health
 {
   "status": "unhealthy",
   "service": "payment",
+  "service_instance": "event-ticketing-payment-1",
   "timestamp": "2026-04-21T15:00:00.000Z",
   "uptime_seconds": 5,
   "checks": {

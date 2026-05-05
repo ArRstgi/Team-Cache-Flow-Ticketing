@@ -138,6 +138,113 @@ app.get('/events/:id/seats', async (req, res) => {
   }
 });
 
+// Core Endpoint: Get Specific Seat Status by Row and Seat Number (e.g., A2)
+app.get('/events/:eventId/seats/:seatLabel', async (req, res) => {
+  try {
+    const { eventId, seatLabel } = req.params;
+    
+    // Normalize the label to uppercase for the cache key (e.g., 'a2' becomes 'A2')
+    const normalizedLabel = seatLabel.toUpperCase();
+    
+    // Updated cache key to reflect that we are only storing the boolean status
+    const cacheKey = `events:${eventId}:seats:label:${normalizedLabel}:status`;
+
+    // Check Redis Cache
+    const cachedStatus = await redisClient.get(cacheKey);
+    if (cachedStatus !== null) {
+      console.log(`[Replica ${replicaId}] Cache hit for /events/${eventId}/seats/${normalizedLabel}`);
+      // Convert the cached string 'true' or 'false' back to a literal boolean
+      return res.status(200).json(cachedStatus === 'true');
+    }
+
+    console.log(`[Replica ${replicaId}] Cache miss for /events/${eventId}/seats/${normalizedLabel}. Querying database...`);
+    
+    // Query Database: We only need to SELECT is_taken now
+    const result = await pool.query(
+      `SELECT is_taken 
+       FROM seats 
+       WHERE event_id = $1 AND UPPER(CONCAT(row, seat_number)) = $2`, 
+      [eventId, normalizedLabel]
+    );
+    
+    // Handle Seat Not Found
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: `Seat ${normalizedLabel} not found for this event` });
+    }
+
+    const isTaken = result.rows[0].is_taken;
+
+    // Cache the boolean result as a string for 60 seconds
+    await redisClient.setEx(cacheKey, 60, String(isTaken));
+    
+    // Return just the literal boolean
+    res.status(200).json(isTaken);
+  } catch (error) {
+    console.error(`[Replica ${replicaId}] Error fetching seat status:`, error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Core Endpoint: Mark a Specific Seat as Taken
+app.post('/events/:eventId/mark/:seatLabel', async (req, res) => {
+  try {
+    const { eventId, seatLabel } = req.params;
+    const normalizedLabel = seatLabel.toUpperCase();
+
+    // 1. Attempt to update the seat to taken IF it is currently false
+    const updateResult = await pool.query(
+      `UPDATE seats 
+       SET is_taken = TRUE 
+       WHERE event_id = $1 AND UPPER(CONCAT(row, seat_number)) = $2 AND is_taken = FALSE 
+       RETURNING id, section, row, seat_number`,
+      [eventId, normalizedLabel]
+    );
+
+    // 2. Check if the update was successful
+    if (updateResult.rows.length === 0) {
+      // It failed. Let's query the DB to find out why.
+      const checkResult = await pool.query(
+        `SELECT is_taken FROM seats WHERE event_id = $1 AND UPPER(CONCAT(row, seat_number)) = $2`,
+        [eventId, normalizedLabel]
+      );
+
+      if (checkResult.rows.length === 0) {
+        // The seat label doesn't exist in the database at all
+        return res.status(404).json({ 
+          success: false, 
+          error: `Seat ${normalizedLabel} not found for this event` 
+        });
+      } else {
+        // The seat exists, but is_taken was already TRUE
+        return res.status(409).json({ 
+          success: false, 
+          error: `Seat ${normalizedLabel} is already taken` 
+        });
+      }
+    }
+
+    // 3. Success! Invalidate and update relevant Redis caches
+    const seatMapCacheKey = `events:${eventId}:seats`;
+    const seatStatusCacheKey = `events:${eventId}:seats:label:${normalizedLabel}:status`;
+    
+    // Delete the full seat map cache so the next request gets fresh data
+    await redisClient.del(seatMapCacheKey);
+    // Overwrite the specific seat status cache to true
+    await redisClient.setEx(seatStatusCacheKey, 60, 'true'); 
+
+    // 4. Return success response
+    res.status(200).json({ 
+      success: true, 
+      message: `Seat ${normalizedLabel} successfully marked as taken`,
+      seat: updateResult.rows[0]
+    });
+
+  } catch (error) {
+    console.error(`[Replica ${replicaId}] Error marking seat as taken:`, error);
+    res.status(500).json({ success: false, error: 'Internal Server Error' });
+  }
+});
+
 // Core Endpoint: Create New Event and Initialize Seats
 app.post('/events', async (req, res) => {
   const { name, venue, date, total_seats, seats } = req.body;
