@@ -99,10 +99,12 @@ app.post('/purchase', async (req, res) => {
         headers: { 'Content-Type': 'application/json' }
     });
     seats = await seats.json();
-    
-    const taken = seats.reduce((acc, seat) => {
-        return acc || seat.is_taken && (seat_number.toLowerCase() === (String(seat.row) + String(seat.seat_number)).toLowerCase());
-    }, false);
+
+    let taken = await fetch(`http://catalog:3000/events/${event_id}/seats/${String(seat_number)}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+    });
+    taken = await taken.json()
 
     if (taken) {
         await redis.rPush(`waitlist:${event_id}`, 
@@ -121,10 +123,12 @@ app.post('/purchase', async (req, res) => {
 
     try {
         const query_results = ( (idempotency_key === undefined) ? await pool.query(`INSERT INTO purchases VALUES (DEFAULT, '${user_id}', '${seat_number}', '${event_id}', '${amount}', '${currency}') RETURNING *;`) : await pool.query(`INSERT INTO purchases VALUES ('${idempotency_key}', '${user_id}', '${seat_number}', '${event_id}', '${amount}', '${currency}') RETURNING *;`) ).rows[0];
-        // if (idempotency_key === undefined) await pool.query(`INSERT INTO purchases VALUES (DEFAULT, '${user_id}', '${seat_number}', '${event_id}', '${amount}', '${currency}');`);
-        // else await pool.query(`INSERT INTO purchases VALUES ('${idempotency_key}', '${user_id}', '${seat_number}', '${event_id}', '${amount}', '${currency}');`);
-        // let query_results = await pool.query(`SELECT * FROM purchases WHERE user_id = '${user_id}';`);
-        // query_results = (query_results.rows)[-1];
+
+        // Mark seat as taken
+        await fetch(`http://catalog:3000/events/${event_id}/mark/${String(query_results.seat_number)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
 
         // Post to fraud detection queue
         try {
@@ -242,36 +246,6 @@ app.get('/dump_db', async (_req, res) => {
             rows: query_results
         });
 });
-
-app.get('/', (_req, res) => {
-    res.send(`
-        <h1>Purchase is Online!</h1>
-    `);
-});
-
-// app.get('/manual_test', (_req, res) => {
-//     res.send(`
-//         <h1>Manual Purchase Test</h1>
-//         <form action="/purchase" method="POST" id="form">
-//             <label for="user_id">user_id:</label>
-//             <input type="text" id="user_id" name="user_id" value="1" required><br>
-
-//             <label for="seat_number">seat_number:</label>
-//             <input type="text" id="seat_number" name="seat_number" value="5" required><br>
-
-//             <label for="event_id">event_id:</label>
-//             <input type="text" id="event_id" name="event_id" value="777" required><br>
-
-//             <label for="amount">amount:</label>
-//             <input type="text" id="amount" name="amount" value="256" required><br>
-
-//             <label for="currency">currency:</label>
-//             <input type="text" id="currency" name="currency" value="PHP" required><br>
-
-//             <button type="submit">Submit</button>
-//         </form>
-//     `);
-// });
 
 app.listen(port, () => {
     console.log(

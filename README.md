@@ -573,7 +573,8 @@ and transform it into:
 
 ```
 {
-  user_id TEXT UNIQUE NOT NULL,
+  idempotency_key TEXT UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
   seat_number TEXT NOT NULL,
   event_id TEXT NOT NULL,
   amount: TEXT NOT NULL,
@@ -583,11 +584,11 @@ and transform it into:
 }
 ```
 
-in which ```purchase_id``` and ```created_at``` are default. This is added to the ```purchases``` database. Returns JSON of added entry along with a duplicate field, indicating if an entry of that user_id already exists on the database. Handles idempotency via ```user_id```, in which on detecting an existing entry with the same ```user_id``` returns that entry along with code ```200```, else ```201```.
+in which ```purchase_id``` and ```created_at``` are default. This is added to the ```purchases``` database. Returns JSON of added entry along with a duplicate field, indicating if an entry of that user_id already exists on the database. Handles idempotency via ```idempotency_key```, in which on detecting an existing entry with the same ```user_id``` returns that entry along with code ```200```, else ```201```.
 
-#### Endpoints:
+---
 
-##### GET /health
+#### GET /health
 
 ```
 GET /health
@@ -599,18 +600,60 @@ GET /health
     503  One or more dependencies unreachable
 ```
 
-##### GET /
+**Example request:**
 
-```
-GET /
-
-  Returns HTML Purchase is Online!
+```bash
+curl http://purchase:9001/health
 ```
 
-##### POST /purchase
+**Example response (200):**
+
+```json
+{
+  "status": "healthy",
+  "service": "unknown",
+  "timestamp": "2026-05-04T17:47:09.997Z",
+  "uptime_seconds": 80,
+  "checks": {
+    "database": {
+      "status": "healthy",
+      "latency_ms": 0
+    },
+    "redis": {
+      "status": "healthy",
+      "latency_ms": 1
+    }
+  }
+}
+```
+
+**Example response (503):**
+
+```json
+{
+  "status": "unhealthy",
+  "service": "unknown",
+  "timestamp": "2026-05-04T17:47:09.997Z",
+  "uptime_seconds": 80,
+  "checks": {
+    "database": {
+      "status": "healthy",
+      "latency_ms": 0
+    },
+    "redis": {
+      "status": "unhealthy",
+      "error": "unexpected response: undefined"
+    }
+  }
+}
+```
+
+---
+
+#### POST /purchase
 
 ```
-  Post a payload to be processed and placed on purchases queue.
+  Post a payload to be processed and placed on purchases queue. Can manually set idempotency_key by adding the field before user_id.
 
   Request:
     {
@@ -623,59 +666,67 @@ GET /
   
   Responses:
     201 New entry, added to database.
-    {
-      duplicate: false,
-      user_id,
-      seat_number,
-      event_id,
-      amount: String,
-      currency: String
-      purchase_id,
-      created_at
-    }
-    200 Duplicate entry (determined by user_id), not added.
-    {
-      duplicate: true,
-      user_id,
-      seat_number,
-      event_id,
-      amount: String,
-      currency: String
-      purchase_id,
-      created_at
-    }
+      {
+        duplicate: false,
+        user_id,
+        seat_number,
+        event_id,
+        amount: String,
+        currency: String
+        purchase_id,
+        created_at
+      }
+    202 Seat taken, not added.
+      {
+        added_to_waitlist: true
+      }
+    200 Duplicate entry (determined by idempotency_key), not added.
+      {
+        duplicate: true,
+      }
 ```
 
-###### Example Request
+**Example request:**
+
+```bash
+curl -s -X POST http://localhost/purchase/purchase -H "Content-Type: application/json" -d '{"user_id": "2", "seat_number": "A1", "event_id": "1", "amount": "10", "currency": "PHP"}'
 ```
+
+**Example Response (201)**
+```json
   {
-    user_id: 1e1,
-    seat_number: a2,
-    event_id: cool,
-    amount: 200,
-    currency: PHP
+    "duplicate": true,
+    "user_id": "1e1",
+    "seat_number": "a2",
+    "event_id": "cool",
+    "amount": "200",
+    "currency": "PHP",
+    "purchase_id": "5b30857f-0bfa-48b5-ac0b-5c64e28078d1",
+    "created_at": "2023-03-16 16:35:20.703644+11"
   }
 ```
 
-###### Example Response
-```
+**Example Response (202)**
+```json
   {
-    duplicate: true,
-    user_id: 1e1,
-    seat_number: a2,
-    event_id: cool,
-    amount: 200,
-    currency: PHP,
-    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1,
-    created_at: 2023-03-16 16:35:20.703644+11
+    "added_to_waitlist": true
   }
 ```
 
-##### GET /manual_test
+**Example request (Manual Idempotency Key Entry):**
 
+```bash
+curl -s -X POST http://localhost/purchase/purchase -H "Content-Type: application/json" -d '{"idempotency_key":"7a6173a6-c2ed-488a-81ee-ac2738554daa", "user_id": "2", "seat_number": "A2", "event_id": "1", "amount": "10", "currency": "PHP"}'
 ```
-  Allows for manual entry of payload to be sent to /purchase.
+
+**Example Response (200)**
+```json
+  {
+    "duplicate": true
+  }
 ```
+
+---
 
 #### GET /fetch_purchase
 
@@ -707,27 +758,33 @@ GET /
       }
 ```
 
-###### Example Request
+**Example Request**
+```bash
+curl -s -X GET http://localhost/purchase/fetch_purchase -H "Content-Type: application/json" -d '{"user_id": "2", "purchase_id":"912cb938-6e5a-403c-8dec-8532c94ffaba"}'
 ```
+
+**Example Response (201)**
+```json
   {
-    user_id: 1e1,
-    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
+    "user_id": "2",
+    "seat_number": "A1",
+    "event_id": "1",
+    "amount": "10",
+    "currency": "PHP",
+    "purchase_id": "912cb938-6e5a-403c-8dec-8532c94ffaba","created_at": "2026-05-04T19:08:08.829Z"
   }
 ```
 
-###### Example Response
-```
+**Example Response (200)**
+```json
   {
-    duplicate: true
-    user_id: 1e1,
-    seat_number: a2,
-    event_id: cool,
-    amount: 200,
-    currency: PHP,
-    purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1,
-    created_at: 2023-03-16 16:35:20.703644+11
+    "user_id": "1",
+    "purchase_id": "912cb938-6e5a-403c-8dec-8532c94ffaba",
+    "err": {}
   }
 ```
+
+---
 
 ##### GET /dump_db
 
@@ -741,24 +798,56 @@ GET /
     }
 ```
 
-###### Example Response
+**Example Request**
+```bash
+  curl http://localhost/purchase/dump_db 
 ```
+
+**Example Response (200)**
+```json
   {
-    rows: [
+    "rows":
+    [
       {
-        user_id: 1e1
-        seat_number: a2
-        event_id: cool
-        purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
-        created_at: 2023-03-16 16:35:20.703644+11
+        "idempotency_key": "7a6173a6-c2ed-488a-81ee-ac2738554daa",
+        "user_id": "2",
+        "seat_number": "A1",
+        "event_id": "1",
+        "amount": "10",
+        "currency": "PHP",
+        "purchase_id": "912cb938-6e5a-403c-8dec-8532c94ffaba",
+        "created_at": "2026-05-04T19:08:08.829Z"
       },
       {
-        user_id: d21
-        seat_number: a3
-        event_id: swag
-        purchase_id: 5b30857f-0bfa-48b5-ac0b-5c64e28078d1
-        created_at: 2023-03-16 16:35:20.703644+11
+        "idempotency_key": "4317d820-c774-4805-a50b-7920d8f9e1c4",
+        "user_id": "3",
+        "seat_number": "A3",
+        "event_id": "1",
+        "amount": "10",
+        "currency": "PHP",
+        "purchase_id": "69fd870d-3f02-4021-9a4d-5a3077444698",
+        "created_at": "2026-05-04T19:25:01.165Z"
       },
+      {
+        "idempotency_key": "c421fdd0-d6cc-4d60-954e-fdab523b18d8",
+        "user_id": "6",
+        "seat_number": "A2",
+        "event_id": "2",
+        "amount": "11",
+        "currency": "PHP",
+        "purchase_id": "60f0d83d-b519-4d16-a467-200247397931",
+        "created_at": "2026-05-04T19:26:35.503Z"
+      },
+      {
+        "idempotency_key": "35e48ef5-1a15-49d2-82ef-9424753bd9a5",
+        "user_id": "60",
+        "seat_number": "b5",
+        "event_id": "2",
+        "amount": "11",
+        "currency": "PHP",
+        "purchase_id": "286551c7-0a62-4245-afc3-59720d842b2f",
+        "created_at": "2026-05-04T19:27:01.956Z"
+      }
     ]
   }
 ```
