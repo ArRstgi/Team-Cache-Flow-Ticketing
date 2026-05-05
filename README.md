@@ -4,30 +4,19 @@
 **System:** Event Ticketing 
 **Repository:** https://github.com/ArRstgi/Team-Cache-Flow-Ticketing
 ---
-## Team and Service Ownership
+## Team and Service Ownership - General
+**See sprint plans for precise service ownership for each sprint.** The following service ownership includes the primary things the members focused on.
 | Team Member | Services / Components Owned                            |
 | ----------- | ------------------------------------------------------ |
-| Mihir Nagarkatti | Compose/Docker Skeleton/Sprint Plan  |
-| Edison Zheng     | `refund/`                |
-| Casey Hammill    | `k6/`                    |
-| Arush Rastogi    | `payment/`               |
-| Daniel Brown     | `frontend/`              |
-| Michael Ye       | `catalog/`               |
-| Enver Amboy      | `purchase/`              |
-| Hayun Jung       | `notifications/`         |
-| Mahad Mushtaq    | `analytics-worker/`, Sprint Reports |
-
-| Team Member | Files / Directories Owned in Sprint 2 |
-| ----------- | ------------------------------------- |
-| Enver Amboy      | `purchases` |
-| Arush Rastogi    | `payment` |
-| Hayun Jung       | `notifications` |
-| Mihir Nagarkatti | `refund` |
-| Casey Hammill    | `k6`, `fraud-detection`|
-| Michael Ye       | `event-catalog`|
-| Mahad Mushtaq    | `analytics-worker`|
-| Edison Zheng     | `waitlist-worker`|
-| Daniel Brown     | `frontend`|
+| Mihir Nagarkatti | `refund/`                    |
+| Edison Zheng     | `waitlist/`                  |
+| Casey Hammill    | `k6/`, `fraudDetection/`      |
+| Arush Rastogi    | `payment/`                   |
+| Daniel Brown     | `frontend/`                  |
+| Michael Ye       | `catalog/`                   |
+| Enver Amboy      | `purchase/`                  |
+| Hayun Jung       | `notifications/`             |
+| Mahad Mushtaq    | `analytics/`, Sprint Reports |
 
 
 > Ownership is verified by `git log --author`. Each person must have meaningful commits in the directories they claim.
@@ -74,22 +63,17 @@ frontend      http://localhost:8080
 > `curl http://payment:3000/health`
 > `curl http://purchase:9001/health`
 > `curl http://fraud-detection:9002/health`
-> `curl http://refund:3001/health`
 > `curl http://analytics:3005/health`
-> curl http://catalog:3000/health
-> curl http://purchase:9001/health
-> curl http://payment:3000/health
-> curl http://notification:3000/health
-> curl http://waitlist:3010/health
-> curl http://refund:3000/health
-> curl http://frontend:3010/health
+> `curl http://notification:3000/health`
+> `curl http://waitlist:3010/health`
+> `curl http://refund:3000/health`
+> `curl http://frontend:3010/health`
 >
 > See [holmes/README.md](holmes/README.md) for a full tool reference.
 ---
 ## System Overview
-N/A
 
-[TODO]
+This is a simulated event ticketing platform. Users would be able to buy tickets for events and make refunds if needed. After a refund, a user will be promoted from the waitlist. The services detect fraud, if present, and deny a purchase. Users also receive confirmation emails from their actions. The services also allow developers to monitor and test the app, with an analytics service, load tests with k6, and a frontend to monitor all the service endpoints. Caddy splits high load onto replicas of the services. 
 
 ---
 ## API Reference
@@ -97,7 +81,6 @@ N/A
   Document every endpoint for every service.
   Follow the format described in the project documentation: compact code block notation, then an example curl and an example response. Add a level-2 heading per service, level-3 per endpoint.
 -->
-N/A
 ---
 ### Waitlist
 
@@ -1164,9 +1147,9 @@ curl http://localhost:[port]/health
 ```
 ---
 
-## Analytics Worker
+### Analytics Worker
 
-### GET /health
+#### GET /health
 ```
 GET /health
   Returns the health status of the analytics worker and its dependencies.
@@ -1178,6 +1161,32 @@ GET /health
 ```bash
 curl http://localhost:3005/health
 ```
+
+**Example response (200):**
+```json
+{
+  "status": "healthy",
+  "service": "analytics-worker",
+  "redis": "ok",
+  "depth": 0,
+  "dlq_depth": 0,
+  "jobs_processed": 1,
+  "last_job_at": "2026-04-21T10:20:48.094Z"
+}
+```
+
+#### Redis Queue Interface
+```
+Queue name: analytics:queue
+DLQ name:   analytics:dlq
+Message shape: { "type": "purchase" | "browse", "eventId": "<event-id>" }
+```
+
+**Push a test event (from holmes):**
+```bash
+docker compose exec redis redis-cli RPUSH analytics:queue '{"type":"purchase","eventId":"event-123"}'
+```
+
 ### Frontend
 #### GET /
 ```
@@ -1214,20 +1223,6 @@ Example response (200):
 }
 ```
 
-## Sprint History
-
-**Example response (200):**
-```json
-{
-  "status": "healthy",
-  "service": "analytics-worker",
-  "redis": "ok",
-  "depth": 0,
-  "dlq_depth": 0,
-  "jobs_processed": 1,
-  "last_job_at": "2026-04-21T10:20:48.094Z"
-}
-```
 
 ---
 
@@ -1298,20 +1293,6 @@ curl http://fraud-detection:9002/health
 }
 ```
 
-### Redis Queue Interface
-```
-Queue name: analytics:queue
-DLQ name:   analytics:dlq
-Message shape: { "type": "purchase" | "browse", "eventId": "<event-id>" }
-```
-
-**Push a test event (from holmes):**
-```bash
-docker compose exec redis redis-cli RPUSH analytics:queue '{"type":"purchase","eventId":"event-123"}'
-```
-
----
-<!-- Add the rest of your endpoints below. One ### section per endpoint. -->
 ---
 ## Sprint History
 | Sprint | Tag        | Plan                                              | Report                                    |
