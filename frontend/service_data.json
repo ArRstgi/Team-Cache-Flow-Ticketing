@@ -16,6 +16,35 @@
             },
             {
                 "path": "/events/:id/seats"
+            },
+            {
+                "path": "/events",
+                "method": "post",
+                "body": {
+                    "name": "event",
+                    "venue": "venue",
+                    "date": "date",
+                    "total_seats": 2,
+                    "seats": [
+                        {
+                            "section": "VIP",
+                            "row": "a",
+                            "seat_number": 1
+                        },
+                        {
+                            "section": "VIP",
+                            "row": "A",
+                            "seat_number": 2
+                        }
+                    ]
+                }
+            },
+            {
+                "path": "/events/:eventId/seats/:seatLabel"
+            },
+            {
+                "path": "/events/:eventId/mark/:seatLabel",
+                "method": "post"
             }
         ]
     },
@@ -110,7 +139,11 @@
                 "path": "dump_db"
             },
             {
-                "path": "manual_test"
+                "path": "fetch_purchase",
+                "query": {
+                    "user_id": "1",
+                    "purchase_id": "1"
+                }
             },
             {
                 "path": "purchase",
@@ -118,7 +151,9 @@
                 "body": {
                     "user_id": 1,
                     "seat_number": 1,
-                    "event_id": 1
+                    "event_id": 1,
+                    "amount": 1,
+                    "currency": "USD"
                 }
             }
         ]
@@ -128,6 +163,17 @@
         "url": "http://analytics",
         "port_outer": 3005,
         "port_inner": 3005,
+        "endpoints": [
+            {
+                "path": "health"
+            }
+        ]
+    },
+    {
+        "name": "Fraud Detection",
+        "url": "http://fraud-detection",
+        "port_outer": 9002,
+        "port_inner": 9002,
         "endpoints": [
             {
                 "path": "health"

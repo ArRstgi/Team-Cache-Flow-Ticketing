@@ -9,18 +9,25 @@
 
     <div class="titlebox">
         <h2>Events Dashboard</h2>
-        <h3>Services:</h3>
     </div>
 
     <div class="flex-horiz">
         <div class="flex-vert">
+            <div class="titlebox">
+                <h3>Services:</h3>
+            </div>
             <div id="service_list"></div>
         </div>
-        <div class="flex-vert panel console-container">
-            <div class="console">
-                <div class="icon_loading" id="response_loading" style="display: none;">🔁</div>
-                <iframe id="response_output_iframe" class="response_output" style="display: none;"></iframe>
-                <div id="response_output_div" class="response_output" style="display: none;"></div>
+        <div class="flex-vert"">
+            <div class="titlebox">
+                <h3>Response:</h3>
+            </div>
+            <div class="flex-vert panel console-container">
+                <div class="console">
+                    <div class="icon_loading" id="response_loading" style="display: none;">🔄</div>
+                    <iframe id="response_output_iframe" class="response_output" style="display: none;"></iframe>
+                    <div id="response_output_div" class="response_output" style="display: none;"></div>
+                </div>
             </div>
         </div>
     </div>
