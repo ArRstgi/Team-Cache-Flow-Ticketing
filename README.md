@@ -1,8 +1,16 @@
 # Team Cache Flow Ticketing — Event Ticketing
 **Course:** COMPSCI 426
-**Team:** Enver Amboy, Hayun Jung, Daniel Brown, Michael Ye, Arush Rastogi, Casey Hammill, Edison Zheng, Mihir Nagarkatti, Mahad Mushtaq
+
+**Team:** 
+
+Enver Amboy, Hayun Jung, Daniel Brown, Michael Ye, Arush Rastogi, Casey Hammill, Edison Zheng, Mihir Nagarkatti, Mahad Mushtaq
+
 **System:** Event Ticketing 
-**Repository:** https://github.com/ArRstgi/Team-Cache-Flow-Ticketing
+
+**Repository:** 
+
+https://github.com/ArRstgi/Team-Cache-Flow-Ticketing
+
 ---
 ## Team and Service Ownership - General
 **See sprint plans for precise service ownership for each sprint.** The following service ownership includes the primary things the members focused on.
