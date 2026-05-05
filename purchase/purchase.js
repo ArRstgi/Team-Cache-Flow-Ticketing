@@ -38,7 +38,7 @@ app.use(express.json());
 await subscriber.subscribe('seat.purchase', async (data) => {
     const payload = JSON.parse(data);
     console.log("Received data from waitlist:", payload);
-    const response = await fetch('http://purchase:9001/purchase', {
+    const response = await fetch('http://localhost/purchase/purchase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
