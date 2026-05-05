@@ -116,7 +116,6 @@ app.get('/health', async (_req, res) => {
         healthy = false;
     }
 
-    // check queue and dlq depth
     try {
         const depth    = await redis.lLen(QUEUE_NAME);
         const dlqDepth = await redis.lLen(DLQ_NAME);
