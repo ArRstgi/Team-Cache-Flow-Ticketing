@@ -37,7 +37,7 @@
 # Start everything (builds images on first run)
 docker compose up --build
 # Start with service replicas (Sprint 4)
-docker compose up --scale your-service=3
+docker compose up --scale purchase=3 --scale catalog=3 --scale payment=3
 # Verify all services are healthy
 docker compose ps
 # Stream logs
@@ -57,12 +57,12 @@ k6 run --env SCALE=replicated k6/sprint-4-replica.js
 ```
 ### Base URLs (development)
 ```
-caddy         http://localhost:80
-catalog       (accessed internally or via Caddy)
-payment       (no host port — access via Caddy at http://localhost/payment/... or internally at http://payment:3000)
+caddy         http://caddy:80
+catalog       (accessed internally at http://catalog:3000 or via Caddy at http://caddy:80/catalog/...)
+payment       (accessed internally at http://payment:3000 or via Caddy at http://caddy:80/payment/...)
 notification  http://localhost:3003
 waitlist      http://localhost:3010
-purchase      http://localhost:9001
+purchase      (accessed internally at http://purchase:9001 or via Caddy at http://caddy:80/purchase/...)
 analytics     http://localhost:3005
 refund        (no host port — internal only)
 refund        http://localhost:3004
@@ -99,9 +99,7 @@ N/A
 -->
 N/A
 ---
-### [Service Name]
-
-### [Waitlist]
+### Waitlist
 
 ### GET /health
 
