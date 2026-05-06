@@ -1,5 +1,10 @@
 
 
+:root {
+    --var-green: #00ffaa;
+    --var-form-elem-bg: #0000004f;
+}
+
 body.theme-fancy {
     background: url("/background.jpg");
     background-size: cover;
@@ -9,6 +14,17 @@ body.theme-fancy {
 body {
     padding-bottom: 50px;
 }
+
+.theme-fancy ::selection,
+.theme-fancy ::-moz-selection {
+    background: var(--var-green);
+    color: #000000;
+}
+
+summary, button {
+    cursor: pointer;
+}
+
 .flex-vert {
     flex-grow: 1;
     flex-basis: 0;
@@ -25,10 +41,12 @@ body {
 }
 .response_output {
     flex-grow: 1;
+    font-family: monospace;
+    white-space: break-spaces;
 }
 
 .theme-fancy .titlebox {
-    color: #00ffab;
+    color: var(--var-green);
 }
 
 #service_list {
@@ -76,6 +94,9 @@ iframe {
     align-items: center;
     gap: 6px;
 }
+.service_listing details > * {
+    margin-bottom: 5px;
+}
 .service_listing h3 {
     margin: 2px;
 }
@@ -84,13 +105,33 @@ iframe {
     padding: 5px 6px;
     border-radius: 3px;
 }
+.theme-fancy .endpoint_form textarea,
+.theme-fancy .endpoint_form button {
+    background: var(--var-form-elem-bg);
+    border: 1px solid black;
+    border-radius: 3px;
+    color: white;
+    padding: 3px 6px;
+}
 .endpoint_form textarea {
     display: block;
+    resize: vertical;
+    height: 100px;
+    min-height: 50px;
+    font-family: monospace;
 }
 
+.theme-fancy .endpoint_form button:hover {
+    background: #00000012;
+}
+
+.loading_inline {
+    display: inline-block;
+}
 .icon_loading {
     text-align: center;
     animation: loading_spin 0.75s linear infinite;
+    display: inline-block;
 }
 @keyframes loading_spin {
     0% { transform: rotate(0deg); }

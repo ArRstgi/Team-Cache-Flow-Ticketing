@@ -5,10 +5,31 @@ const app = express();
 app.use(express.json());
 const redis = createClient({ url: process.env.REDIS_URL });
 await redis.connect();
+const workerRedis = createClient({ url: process.env.REDIS_URL });
+await workerRedis.connect();
 
 const startTime = Date.now();
+const subscriber = redis.duplicate();
+await subscriber.connect();
 
-// Notification Worker Service
+await subscriber.subscribe('purchase.processed', (message) => {
+    try {
+        const event = JSON.parse(message);
+        console.log(JSON.stringify({
+            event: 'confirmation_email_sent',
+            user_id: event.user_id,
+            event_id: event.event_id,
+            purchase_id: event.purchase_id,
+            timestamp: new Date().toISOString(),
+        }));
+        console.log(`[Notification] Confirmation email sent to user ${event.user_id} for event ${event.event_id}`);
+    } catch (err) {
+        console.error('[Notification] Failed to process purchase.processed message:', err.message);
+    }
+});
+ 
+console.log('[Notification] Subscribed to purchase.processed')
+
 const QUEUE_NAME = process.env.QUEUE_NAME ?? 'notifications:queue';
 const DLQ_NAME   = `${QUEUE_NAME}:dlq`;
 let jobsProcessed = 0;
@@ -18,7 +39,7 @@ async function runWorker() {
     console.log(`[Notification Worker] Listening on ${QUEUE_NAME}`);
     while (true) {
         try {
-            const result = await redis.brPop(QUEUE_NAME, 5);
+            const result = await workerRedis.brPop(QUEUE_NAME, 5);
             if (!result) continue;
  
             let message;
@@ -71,7 +92,6 @@ app.get('/health', async (_req, res) => {
     const checks = {};
     let healthy = true;
 
-    // Check Redis
     const redisStart = Date.now();
     try {
         const pong = await redis.ping();
@@ -82,19 +102,20 @@ app.get('/health', async (_req, res) => {
         healthy = false;
     }
     
-    // Check cache (set and get a test key)
     try {
         await redis.set('health:cache:test', '1', { EX: 5 });
         const val = await redis.get('health:cache:test');
-        checks.cache = val === '1'
-            ? { status: 'healthy' }
-            : { status: 'unhealthy', error: 'cache read/write mismatch' };
+        if (val !== '1') {
+            checks.cache = { status: 'unhealthy', error: 'cache read/write mismatch' };
+            healthy = false;
+        } else {
+            checks.cache = { status: 'healthy' };
+        }
     } catch (err) {
         checks.cache = { status: 'unhealthy', error: err.message };
         healthy = false;
     }
 
-    // check queue and dlq depth
     try {
         const depth    = await redis.lLen(QUEUE_NAME);
         const dlqDepth = await redis.lLen(DLQ_NAME);
@@ -130,7 +151,6 @@ app.post('/notify', (req, res) => {
         });
     }
 
-    // Simulate sending email (Sprint 1 = just log)
     console.log(`Sending confirmation to user ${userId} for event ${eventId}`);
 
     res.json({
