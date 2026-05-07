@@ -1,14 +1,16 @@
-# Sprint 4 Report — [Team Name]
+# Sprint 4 Report — Team-Cache-Flow-Ticketing
 
 **Sprint:** 4 — Replication, Scaling, and Polish  
 **Tag:** `sprint-4`  
-**Submitted:** [date, before 05.05 class]
+**Submitted:** May 7, 2026
 
 ---
 
 ## What We Built
 
-[Which services are replicated? How does load balancing work? What polish work was completed?]
+Sprint 4 focused on making the system production-ready through replication, load balancing, and polish. Three core services — catalog, purchase, and payment — were replicated using `docker compose --scale` and placed behind a Caddy reverse proxy with round-robin load balancing. Caddy handles all inbound traffic on port 80 (catalog) and port 9001 (purchase), distributing requests across all healthy replicas automatically.
+
+On the polish side, the purchase service was wired up with seat availability checking and marking — when a ticket is purchased, the corresponding seat in the catalog is marked as taken. The notification service was connected to the purchase pipeline so users receive confirmation events. The analytics worker received a startup fix so the health endpoint reports accurately from the moment the container starts. The event catalog received new endpoints for creating events and checking/marking seat availability. The frontend was improved with updated endpoints.
 
 ---
 
@@ -16,37 +18,69 @@
 
 | Team Member | What They Delivered | Key Commits |
 | ----------- | ------------------- | ----------- |
-| [Name]      | | |
-| [Name]      | | |
-| [Name]      | | |
+| Michael Ye | Caddy setup + catalog replication, POST /events endpoint, seat availability endpoints (check seat, mark seat, add seats) | `4974441`, `6042e98`, `fadf2f8`, `40195e8`, `19ec32e` |
+| Arush Rastogi | Payment service replication, README update for payment replication | `5a59822`, `75f0ae6` |
+| Edison Zheng | Caddy multi-service config covering all 3 replicated services, Caddyfile fixes, removed ports/container_names for replicated services, Caddy README | `1c977c0`, `938c356`, `6e3e39b`, `7ab4aa4` |
+| Enver Amboy | Purchase seat mark and cleanup, seat availability checking, connect notifications to purchase, idempotency rework, waitlist subscribe callback fix | `9090b61`, `dd9f2d1`, `4590349`, `d3e32b0` |
+| Casey Hammill | k6 Sprint 4 scale test, k6 replica failure test, results added to report | `160e21e`, `4610a61` |
+| Hayun Jung | Notifications connected to purchase via Redis pub/sub | `3c3a0b7`, `17369da`, `5bb1931` |
+| Daniel Brown | Frontend improvements, updated endpoints | `471d72a`, `26c839c` |
+| Mihir Nagarkatti | Sprint 4 README documentation, sprint plan | `fe9d527`, `327f491` |
+| Mahad Mushtaq | Purchase service replication + Caddy load balancer, analytics worker Redis ping fix on startup, sprint reports | `5855e6a`, `961ac97`, `cda6bba` |
 
 ---
 
 ## Starting the System with Replicas
 
 ```bash
-docker compose up --scale [service-name]=3 --scale [other-service]=2
+docker compose up -d --build
+docker compose up -d --scale catalog=3 --scale purchase=3
 ```
 
 After startup:
 
 ```
-[Paste docker compose ps output here showing all replicas as (healthy)]
+NAME                                IMAGE                             COMMAND                  SERVICE           STATUS
+analytics                           event-ticketing-analytics         "docker-entrypoint.s…"   analytics         Up (healthy)
+analytics-db                        postgres:16                       "docker-entrypoint.s…"   analytics-db      Up (healthy)
+caddy                               caddy:2-alpine                    "caddy run --config …"   caddy             Up
+event-ticketing-catalog-1           event-ticketing-catalog           "docker-entrypoint.s…"   catalog           Up (healthy)
+event-ticketing-catalog-2           event-ticketing-catalog           "docker-entrypoint.s…"   catalog           Up (healthy)
+event-ticketing-catalog-3           event-ticketing-catalog           "docker-entrypoint.s…"   catalog           Up (healthy)
+event-ticketing-fraud-detection-1   event-ticketing-fraud-detection   "docker-entrypoint.s…"   fraud-detection   Up
+event-ticketing-purchase-1          event-ticketing-purchase          "docker-entrypoint.s…"   purchase          Up (healthy)
+event-ticketing-purchase-2          event-ticketing-purchase          "docker-entrypoint.s…"   purchase          Up (healthy)
+event-ticketing-purchase-3          event-ticketing-purchase          "docker-entrypoint.s…"   purchase          Up (healthy)
+event-ticketing-waitlist-1          event-ticketing-waitlist          "docker-entrypoint.s…"   waitlist          Up (healthy)
+frontend                            event-ticketing-frontend          "docker-entrypoint.s…"   frontend          Up
+holmes                              event-ticketing-holmes            "sleep infinity"         holmes            Up
+notification                        event-ticketing-notification      "docker-entrypoint.s…"   notification      Up
+payment                             event-ticketing-payment           "docker-entrypoint.s…"   payment           Up (healthy)
+postgres                            postgres:16                       "docker-entrypoint.s…"   postgres          Up (healthy)
+purchase-db                         postgres:16                       "docker-entrypoint.s…"   purchase-db       Up (healthy)
+redis                               redis:7                           "docker-entrypoint.s…"   redis             Up (healthy)
+refund                              event-ticketing-refund            "docker-entrypoint.s…"   refund            Up (healthy)
+refund-db                           postgres:16                       "docker-entrypoint.s…"   refund-db         Up (healthy)
 ```
 
 ---
 
 ## What Is Working
 
-- [ ] At least [N] services replicated via `--scale`
-- [ ] Load balancer distributes traffic across replicas (visible in logs)
-- [ ] Services are stateless — multiple instances run without conflicts
-- [ ] `docker compose ps` shows all replicas as `(healthy)`
-- [ ] System is fully complete for team size
+- [x] At least 2 services replicated via `--scale` (catalog ×3, purchase ×3)
+- [x] Load balancer (Caddy) distributes traffic across replicas with round-robin policy
+- [x] Services are stateless — multiple instances run without conflicts
+- [x] `docker compose ps` shows all replicas as `(healthy)`
+- [x] System is fully complete for team size
+- [x] Replica failure test — killing one replica during sustained traffic causes zero failed requests, surviving replicas absorb load seamlessly
+- [x] Analytics worker health endpoint reports accurately from startup
 
 ---
 
 ## What Is Not Working / Cut
+
+- The analytics worker container shows `(unhealthy)` in `docker compose ps` on some machines due to a Docker healthcheck timing issue on startup. The service itself responds correctly on port 3005 and the health endpoint returns valid data. A startup Redis ping fix was applied to address this.
+- The `analytics:queue` producer-side integration from the purchase service was not completed — the analytics worker is fully operational and ready to consume events, but purchase does not currently push to the queue.
 
 ---
 
@@ -740,3 +774,10 @@ event-ticketing-catalog-3           event-ticketing-catalog           "docker-en
 ---
 
 ## Blockers and Lessons Learned
+
+Coordinating `compose.yml` changes across multiple team members remained the biggest source of friction. Several services needed `container_name` and `ports` removed to support replication, and these changes frequently conflicted when merging to dev.
+
+The TCP keepalive behavior with Caddy and `curl` was an unexpected discovery — load balancing appears to not work when tested with `curl` in a loop, but works correctly under k6 which creates multiple connections. This was not a real issue with our setup, just a testing artifact.
+
+Service healthcheck timing continued to be a minor issue, with some containers briefly showing unhealthy on startup before dependencies were fully ready. Overall the system came together well by end of sprint with all core replication and scaling goals met.
+
