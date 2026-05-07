@@ -121,6 +121,14 @@ const server = http.createServer(async (req, res) => {
 
 async function main() {
   await initDb();
+
+  try {
+    await redis.ping();
+    redisOk = true;
+  } catch (err) {
+    redisOk = false;
+  }
+
   server.listen(port, () => {
     console.log(JSON.stringify({ level: "info", msg: `health server listening on ${port}` }));
   });
